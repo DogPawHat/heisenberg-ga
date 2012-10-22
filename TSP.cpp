@@ -6,40 +6,46 @@
 #include <vector>
 using namespace std;
 
-typedef vector<float*> nodeList;
-
 //Parses and stores data from a TSBLIB95 .tsp file (EUC_2D Node types)
-class TSPFile{
+class TSP{
 	private:
-		nodeList list;
+		float** list;
 	public:
 		void SetNodeListFromTSPFile(string);
 		float GetDistance(float*, float*);
+		TSP(string);
 };
 
-void TSPFile::SetNodeListFromTSPFile(string filename){
+TSP::TSP(string filename){
+	this.list = GetNodeListFromTSPFile(filename);
+}
+
+void TSP::GetNodeListFromTSPFile(string filename){
 	ifstream TSPFile;
 	stringstream currentLine;
 	int linePos;
-	int dumpInt;
+	int listSize;
+	float** list;
+
+
 	TSPFile.open(filename);
-	while(currentLine.str() != "NODE_COORD_SECTION"){
+
+	while(currentLine.str().find("DIMENSION:", 0) == string::npos){
 		getline(TSPFile, currentLine.str());
 	}
-	list
-	linePos = 1;
+	currentLine.ignore(15, ':');
+	currentLine >> listSize;
+	list = new float[listSize][2];
+
 	while(currentLine.str() != "EOF"){
 		getline(TSPFile, currentLine.str());
-		currentLine >> dumpInt;
-		if(linePos == dumpInt){
-			list.push_back(new float[2]);
-			currentLine >> list.back[0];
-			currentLine >> list.back[1];
-		}
+		currentLine >> linePos;
+		currentLine >> list[linePos][0];
+		currentLine >> list[linePos][1];
 	}
 }
 
-float TSPFile::GetDistance(float* x, float* y)
+float TSP::GetDistance(float* x, float* y)
 {
 	float xd = x[i] - x[j];
 	float yd = y[i] - y[j];
