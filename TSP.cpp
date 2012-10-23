@@ -11,7 +11,7 @@ class TSP{
 	public:
 		float** list;
 		TSP(char *);
-		float** GetNodeListFromTSPFile(string);
+		float** GetNodeListFromTSPFile(char*);
 };
 
 TSP::TSP(char* filename){
@@ -19,7 +19,7 @@ TSP::TSP(char* filename){
 	this->list = GetNodeListFromTSPFile(filenameS);
 }
 
-float** TSP::GetNodeListFromTSPFile(string filename){
+float** TSP::GetNodeListFromTSPFile(char* filename){
 	ifstream TSPFile;
 	stringstream currentLine;
 	int linePos;
@@ -27,7 +27,7 @@ float** TSP::GetNodeListFromTSPFile(string filename){
 	float** list;
 
 
-	TSPFile.open(filename);
+	TSPFile.open(filename, ifstream::in);
 
 	while(currentLine.str().find("DIMENSION:", 0) != string::npos){
 		getline(TSPFile, currentLine.str());
@@ -43,6 +43,8 @@ float** TSP::GetNodeListFromTSPFile(string filename){
 		currentLine >> list[linePos][0];
 		currentLine >> list[linePos][1];
 	}
+
+	TSPFile.close();
 
 	return list;
 }
