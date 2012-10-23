@@ -1,9 +1,6 @@
 #include <iostream>
-#include <fstream>
 #include <string>
-#include <sstream>
-#include <cmath>
-#include <vector>
+
 using namespace std;
 
 //Parses and stores data from a TSBLIB95 .tsp file (EUC_2D Node types)
@@ -15,22 +12,21 @@ class TSP{
 };
 
 TSP::TSP(char* filename){
-	string filenameS(filename);
-	this->list = GetNodeListFromTSPFile(filenameS);
+	this->list = GetNodeListFromTSPFile(filename);
 }
 
 float** TSP::GetNodeListFromTSPFile(char* filename){
 	ifstream TSPFile;
-	stringstream currentLine;
+	stringstream currentLine(stringstream::in | stringstream::out);
 	int linePos;
 	int listSize;
 	float** list;
 
 
-	TSPFile.open(filename, ifstream::in);
+	TSPFile.open(filename);
 
-	while(currentLine.str().find("DIMENSION:", 0) != string::npos){
-		getline(TSPFile, currentLine.str());
+	while(currentLine.str().find("DIMENSION:", 0) != npos){
+		std::getline(TSPFile, currentLine.str);
 	}
 	currentLine.ignore(15, ':');
 	currentLine >> listSize;
