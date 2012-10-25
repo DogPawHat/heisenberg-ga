@@ -1,30 +1,14 @@
 #include <boost/spirit/include/qi.hpp>
-#include <boost/spirit/include/phoenix_core.hpp>
-#include <boost/spirit/include/phoenix_operator.hpp>
-#include <boost/spirit/include/qi_stream.hpp>
 #include <iostream>
 #include <string>
 
-namespace qi = boost::spirit::qi;
-namespace ascii = boost::spirit::ascii;
-namespace phoenix = boost::phoenix;
-
-using qi::double_;
-using qi::_1;
-using ascii::space;
-using phoenix::ref;
-
-struct TSPList{
-	float*[2] a;
-	TSPList(int size
-
-	)
-};
+namespace spirit = boost::spirit;
+namespace qi = spirit::qi;
 
 class TSP{
 	public:
 		TSP(char *);
-		float** GetNodeListFromTSPFile(char*);
+		double** GetNodeListFromTSPFile(char*);
 }
 
 TSP::TSP(char* filename){
@@ -32,19 +16,38 @@ TSP::TSP(char* filename){
 };
 
 
-float** TSP::GetNodeListFromTSPFile(char* filename){
-	ifstream TSPFile;
-	string match;
-	string currentLine;
-	int linePos;
-	int listSize;
-	float** list;
-
-
+double** TSP::GetNodeListFromTSPFile(char* filename){
+	std::ifstream TSPFile;
+	
+	TSPFile.open(filename);
+	
+	spirit::istream_iterator begin(TSPFile);
+	spirit::istream_iterator end;
+	
+	TSP
+	
+	TSP::parseAjacenclyList(begin, end, size);
 }
 
-std::istream&
-operator>>(istream& TSPStream, float**& TSPList){
-	int linepos;
-	linepos >> TSPList[linepos][0][1];
+//Parses data section.
+int TSP::parseDimentionSection(Iterator first&, Iterator last&){}
+
+
+//This function parses the adjacency list in TSPLIB that represents the TSP graph.
+double** TSP::parseAjacenclyList(Iterator& first, Iterator& last, int size){
+	using qi::int_
+	using qi::double_
+	using qi::_1
+	using phoenix::ref;
+	
+	int l; //Array index specified by the file.
+	float a [size][2]; //Float array where the adjacentcy list will be stored
+	
+	//TODO: Exception Handling.
+	qi::parse(first, last, (int_[ref(l) = _1] >> double_[ref(a[l][0])] >> double_[ref(a[l][1]]));
+	
+	return a;
 }
+
+
+
