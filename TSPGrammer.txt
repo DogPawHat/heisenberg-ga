@@ -7,6 +7,7 @@
 "EDGE_WEIGHT_FORMAT:" >> string_
 "NODE_COORD_TYPE:" >> string_
 "DISPLAY_DATA_TYPE:" >> string_
+"NODE_COORD_SECTION"
 "EOF"
 
 
