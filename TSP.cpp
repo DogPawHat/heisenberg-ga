@@ -1,76 +1,84 @@
-#include <fstream>
+#include <boost/spirit/include/qi.hpp>
+#include <boost/spirit/include/support_istream_iterator.hpp>
+#include <boost/spirit/include/phoenix_core.hpp>
+#include <boost/spirit/include/phoenix_operator.hpp>
 
-using namespace std;
 
-//Parses and stores data from a TSBLIB95 .tsp file (EUC_2D Node types)
+namespace spirit = boost::spirit;
+namespace qi = boost::spirit::qi;
+namespace phoenix = boost::phoenix;
+
+using spirit::istream_iterator;
+using qi::int_;
+using qi::double_;
+using qi::_1;
+using phoenix::ref;
+
+
+
 class TSP{
+	private:
+		double** a;
 	public:
-		float** list;
 		TSP(char *);
-		float** GetNodeListFromTSPFile(char*);
-		string MatchLineBeforeColon(istream TSPFile, string match){
+		double** GetNodeListFromTSPFile(char*);
+		int parseDimentionSection(istream_iterator&, istream_iterator);
+		double** parseAdjacencyList(istream_iterator&, istream_iterator, int);
+		double** list(){return a;}
+		void list(double** list){a = list;}
 };
 
-TSP::TSP(char* filename){
-	this->list = GetNodeListFromTSPFile(filename);
+TSP::TSP (char* filename){
+	a = GetNodeListFromTSPFile(filename);
 }
 
-float** TSP::GetNodeListFromTSPFile(char* filename){
-	ifstream TSPFile;
-	string match;
-	string currentLine;
-	int linePos;
-	int listSize;
-	float** list;
 
-
+double** TSP::GetNodeListFromTSPFile (char* filename){
+	std::ifstream TSPFile;
+	int size;
+	
 	TSPFile.open(filename);
-
-	match = "NAME:";
-
-	TSP::MatchLineBeforeColon(TSPFile, match);
-
-	match = "TYPE:";
-
-	TSP::MatchLineBeforeColon(TSPFile, match);
-
-	match = "COMMENT";
-
-	TSP::MatchLineBeforeColon(TSPFile, match);
-
-	match = "DIMENSION:";
-
-	TSP::MatchLineBeforeColon(TSPFile, match);
-
-	TSPFile >> listSize;
-
-	match = "EDGE_WEIGHT_TYPE:";
-
-	TSP::MatchLineBeforeColon(TSPFile, match);
-
-	match = "NODE_COORD_SECTION";
-
-	currentLineStream >> listSize;
-	list = new float* [listSize];
-
-	while(currentLine != "EOF"){
-		getline(TSPFile, currentLine);
-		currentLineStream.str(currentLine);
-		currentLineStream >> linePos;
-		list[linePos] = new float[2];
-		currentLineStream >> list[linePos][0];
-		currentLineStream >> list[linePos][1];
-	}
-
-	TSPFile.close();
-
-	return list;
+	
+	istream_iterator begin(TSPFile);
+	istream_iterator end;
+	
+	size = TSP::parseDimentionSection(begin, end);
+	return TSP::parseAdjacencyList(begin, end, size);
 }
 
-string TSP::MatchLineBeforeColon(istream TSPFile, string match){
-	string currentline;
-	while(currentLine != match){
-				std::getline(TSPFile, currentLine, ':');
-	}
-	return currentline;
+//Parses data section.
+int TSP::parseDimentionSection(istream_iterator& first, istream_iterator last){
+
+	int a;
+
+	qi::parse(first, last, (
+			"NAME:" >> string_ >>
+			"TYPE:" >> string_ >>
+			"COMMENT:" >> string_ >>
+			"DIMENSION:" >> int_[ref(a) = _1]
+			"EDGE_WEIGHT_TYPE:" >> string_
+		));
+
 }
+
+
+//This function parses the adjacency list in TSPLIB that represents the TSP graph.
+double** TSP::parseAdjacencyList(istream_iterator& first, istream_iterator last, int size){
+
+	
+	int l; //Array index specified by the file.
+	float a [size][2]; //Float array where the adjacency list will be stored
+	
+	//TODO: Exception Handling.
+	qi::parse(first, last, (
+			int_[ref(l) = _1] >>
+			(double_[ref(a[l][0]) = _1] >>
+			double_[ref(a[l][1]) = _1]) %
+		)
+	);
+	
+	return a;
+}
+
+
+

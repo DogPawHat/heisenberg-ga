@@ -1,12 +1,12 @@
-"NAME:" >> string_
-"TYPE:" >> string_
-"COMMENT:" >> string_
+"NAME:" >> string_ >>
+"TYPE:" >> string_ >>
+"COMMENT:" >> string_ >>
 "DIMENSION:" >> int_[storeDimenstion()]
-"CAPACITY:" >> int_
 "EDGE_WEIGHT_TYPE:" >> string_
-"EDGE_WEIGHT_FORMAT:" >> string_
-"NODE_COORD_TYPE:" >> string_
-"DISPLAY_DATA_TYPE:" >> string_
+
+
+
+
 "NODE_COORD_SECTION"
 "EOF"
 
