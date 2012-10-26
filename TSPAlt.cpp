@@ -34,7 +34,7 @@ int TSP::parseDimentionSection(Iterator first&, Iterator last&){}
 
 
 //This function parses the adjacency list in TSPLIB that represents the TSP graph.
-double** TSP::parseAjacenclyList(Iterator& first, Iterator& last, int size){
+double** TSP::parseAdjacencyList(Iterator& first, Iterator& last, int size){
 	using qi::int_
 	using qi::double_
 	using qi::_1
@@ -44,7 +44,7 @@ double** TSP::parseAjacenclyList(Iterator& first, Iterator& last, int size){
 	float a [size][2]; //Float array where the adjacentcy list will be stored
 	
 	//TODO: Exception Handling.
-	qi::parse(first, last, (int_[ref(l) = _1] >> double_[ref(a[l][0])] >> double_[ref(a[l][1]]));
+	qi::parse(first, last, (int_[ref(l) = _1] >> double_[ref(a[l][0])] >> double_[ref(a[l][1]])) %;
 	
 	return a;
 }
