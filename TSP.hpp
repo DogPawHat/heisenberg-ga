@@ -14,7 +14,7 @@ namespace qi = boost::spirit::qi;
 namespace phoenix = boost::phoenix;
 namespace ascii = boost::spirit::ascii;
 
-typedef std::vector<double[2]> TSPList ;
+typedef std::vector< std::vector<double> > TSPList ;
 
 
 class TSP{
@@ -29,7 +29,7 @@ public:
 
 		using qi::int_;
 		using qi::double_;
-		using qi::string;
+		using qi::char_;
 		using qi::_1;
 		using phoenix::ref;
 		using ascii::space;
@@ -37,7 +37,7 @@ public:
 		int size;
 
 		qi::phrase_parse(first, last, (
-				"NAME:" >> string >> "TYPE:" >> string >> "COMMENT:" >> string >> "DIMENSION:" >> int_[ref(size) = _1] >>"EDGE_WEIGHT_TYPE:" >> string
+				"NAME:" >> char_ >> *char_ >> "TYPE:" >> char_ >> *char_ >> "COMMENT:" >> char_ >> *char_ >> "DIMENSION:" >> int_[ref(size) = _1] >>"EDGE_WEIGHT_TYPE:" >> char_ >> *char_
 		),
 				space
 		);
@@ -55,7 +55,7 @@ public:
 		using ascii::space;
 
 		int i; //Array index specified by the file.
-		TSPList a(size); //Double array where the adjacency list will be stored
+		TSPList a(size, std::vector<double>(2) ); //Double array where the adjacency list will be stored
 
 		//TODO: Exception Handling.
 		qi::phrase_parse(first, last,
