@@ -1,7 +1,8 @@
 #ifndef TSP_H
 #define TSP_H
 
-#include <stdio.h>
+
+#include "TSPParse.hpp"
 #include <vector>
 #include <fstream>
 #include <boost/spirit/include/qi.hpp>
@@ -14,10 +15,38 @@ namespace qi = boost::spirit::qi;
 namespace phoenix = boost::phoenix;
 namespace ascii = boost::spirit::ascii;
 
-typedef std::vector<double[2]> TSPList ;
+class TSP{
+private:
+	TSPList a;
+public:
+	TSP(char* filename){
+		a = GetNodeListFromTSPFile(filename);
+	}
+
+	TSPList GetNodeListFromeTSPFile(char* filename){
+		using spirit::istream_iterator;
+		using ascii::space;
+
+		std::ifstream file;
+		TSPList result;
+		TSP_ tsp;
 
 
-template <typename Iterator>
-struct TSPFile;
 
-#endif
+		file.open(filename);
+		istream_iterator begin(file);
+		istream_iterator end;
+
+		bool r = qi::phrase_parse(begin, end, tsp, space, result);
+		if(r == false){
+			std::cout << "Looks like rain, Ted";
+		}
+
+		return result;
+	}
+
+	TSPList list(){return a;}
+	void list(TSPList list){a = list;}
+};
+
+
