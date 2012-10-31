@@ -23,13 +23,13 @@ public:
 		a = GetNodeListFromTSPFile(filename);
 	}
 
-	TSPList GetNodeListFromeTSPFile(char* filename){
+	TSPList GetNodeListFromTSPFile(char* filename){
 		using spirit::istream_iterator;
 		using ascii::space;
 
 		std::ifstream file;
 		TSPList result;
-		TSP_ tsp;
+		TSP<istream_iterator> tsp;
 
 
 

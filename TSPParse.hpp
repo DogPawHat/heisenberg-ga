@@ -13,16 +13,16 @@ namespace qi = boost::spirit::qi;
 namespace phoenix = boost::phoenix;
 namespace ascii = boost::spirit::ascii;
 
-typedef std::vector<double[2]> TSPList ;
+typedef std::vector< std::vector<double> > TSPList ;
 
 using ascii::space_type;
 
 template <typename Iterator>
-struct TSP_
+struct TSP
 : qi::grammar<Iterator, TSPList(), space_type>
 {
-	TSP_()
-						: TSP_::base_type(start)
+	TSP()
+						: TSP::base_type(start)
 	{
 		using qi::eps;
 		using qi::double_;
