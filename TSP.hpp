@@ -49,4 +49,5 @@ public:
 	void list(TSPList list){a = list;}
 };
 
+#endif
 
