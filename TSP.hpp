@@ -29,7 +29,7 @@ public:
 
 		std::ifstream file;
 		TSPList result;
-		TSP<istream_iterator> tsp;
+		TSPParse<istream_iterator> tsp;
 
 
 

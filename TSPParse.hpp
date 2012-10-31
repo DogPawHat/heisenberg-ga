@@ -18,11 +18,11 @@ typedef std::vector< std::vector<double> > TSPList ;
 using ascii::space_type;
 
 template <typename Iterator>
-struct TSP
+struct TSPParse
 : qi::grammar<Iterator, TSPList(), space_type>
 {
-	TSP()
-						: TSP::base_type(start)
+	TSPParse()
+						: TSPParse::base_type(start)
 	{
 		using qi::eps;
 		using qi::double_;
