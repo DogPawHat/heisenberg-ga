@@ -25,7 +25,8 @@ public:
 
 	TSPList GetNodeListFromTSPFile(char* filename){
 		using spirit::istream_iterator;
-		using ascii::space;
+		using qi::space;
+		using qi::space_type;
 
 		std::ifstream file;
 		TSPList result;
@@ -37,10 +38,7 @@ public:
 		istream_iterator begin(file);
 		istream_iterator end;
 
-		bool r = qi::phrase_parse(begin, end, tsp, space, result);
-		if(r == false){
-			std::cout << "Looks like rain, Ted";
-		}
+		bool r = qi::parse(begin, end, tsp, result);
 
 		return result;
 	}
