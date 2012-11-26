@@ -1,6 +1,8 @@
 #ifndef TSP_H
 #define TSP_H
 
+#include "../TSPList.h"
+
 
 class TSP{
 private:

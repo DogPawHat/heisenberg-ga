@@ -1,4 +1,4 @@
-#include "TSPParse.hpp"
+#include "TSPParse.h"
 #include <vector>
 #include <fstream>
 #include <boost/spirit/include/qi.hpp>
@@ -34,7 +34,7 @@ public:
 		istream_iterator begin(file);
 		istream_iterator end;
 
-		bool r = qi::parse(begin, end, tsp, result);
+		qi::parse(begin, end, tsp, result);
 
 		return result;
 	}
