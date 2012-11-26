@@ -27,21 +27,18 @@ public:
 		using spirit::istream_iterator;
 		using qi::space;
 		using qi::space_type;
-		using qi::blank;
-		using qi::blank_type;
 
 		std::ifstream file;
 		TSPList result;
-		TSPParse<istream_iterator, blank_type> tsp;
+		TSPParse<istream_iterator> tsp;
 
 
-		file.unsetf(std::ios::skipws);
+
 		file.open(filename);
-		
 		istream_iterator begin(file);
 		istream_iterator end;
 
-		bool r = qi::phrase_parse(begin, end, tsp, blank, result);
+		bool r = qi::parse(begin, end, tsp, result);
 
 		return result;
 	}

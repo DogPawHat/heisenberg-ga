@@ -18,9 +18,9 @@ namespace ascii = boost::spirit::ascii;
 
 typedef std::vector< std::vector<double> > TSPList ;
 
-template <typename Iterator, typename Skipper>
+template <typename Iterator>
 struct TSPParse
-: qi::grammar<Iterator, TSPList(), Skipper>
+: qi::grammar<Iterator, TSPList()>
 {
 	TSPParse()
 						: TSPParse::base_type(start, "tsp")
@@ -37,19 +37,18 @@ struct TSPParse
 		using ascii::char_;
 		using qi::on_error;
 		using qi::no_skip;
-		using qi::eol;
 		using ascii::space;
 
-		start = (jibberish % eol) >> eol >> nodecoorddata[_val = _1];
+		start = (jibberish % no_skip['\n']) >> nodecoorddata[_val = _1] >> "EOF";
 		jibberish = name | type | comment | dimension | edgeweighttype;
-		name = "NAME:" >> +char_("a-zA-Z_0-9()");
-		type = "TYPE:" >> +char_("a-zA-Z_0-9()");
-		comment = "COMMENT:" >> +char_("a-zA-Z_0-9()");
-		dimension = "DIMENSION:" >> int_;
-		edgeweighttype = "EDGE_WEIGHT_TYPE:" >> +char_("a-zA-Z_0-9()");
-		nodecoorddata = "NODE_COORD_SECTION" >> eol >> (nodecoordentry % eol)[_val = _1] >> eol >> "EOF";
-		nodecoordentry = int_ >> nodecoordpair[_val = _1];
-		nodecoordpair = double_[push_back(_val, _1)] >> double_[push_back(_val, _1)];
+		name = "NAME: " >> +char_("a-zA-Z_0-9() ");
+		type = "TYPE: " >> +char_("a-zA-Z_0-9() ");
+		comment = "COMMENT:" >> +char_("a-zA-Z_0-9() ");
+		dimension = "DIMESION:" >> int_;
+		edgeweighttype = "EDGE_WEIGHT_TYPE:" >> +char_("a-zA-Z_0-9() ");
+		nodecoorddata = "NODE_COORD_SECTION" >> (nodecoordentry % no_skip['\n'])[_val = _1];
+		nodecoordentry = int_ >> space >> nodecoordpair[_val = _1];
+		nodecoordpair = double_[push_back(_val, _1)] >> space >> double_[push_back(_val, _1)];
 
 		start.name("start");
 		jibberish.name("jibberish");
@@ -74,17 +73,29 @@ struct TSPParse
 				<< val("\"")
 				<< '\n'
 		);
+
+		debug(start);
+		debug(jibberish);
+		debug(name);
+		debug(type);
+		debug(comment);
+		debug(dimension);
+		debug(edgeweighttype);
+		debug(nodecoorddata);
+		debug(nodecoordentry);
+		debug(nodecoordpair);
+
 	}
-	qi::rule<Iterator, TSPList(), Skipper> start;
-	qi::rule<Iterator, std::string(), Skipper> jibberish;
-	qi::rule<Iterator, std::string(), Skipper> name;
-	qi::rule<Iterator, std::string(), Skipper> type;
-	qi::rule<Iterator, std::string(), Skipper> comment;
-	qi::rule<Iterator, std::string(), Skipper> dimension;
-	qi::rule<Iterator, std::string(), Skipper> edgeweighttype;
-	qi::rule<Iterator, TSPList(), Skipper> nodecoorddata;
-	qi::rule<Iterator, std::vector<double>(), Skipper> nodecoordentry;
-	qi::rule<Iterator, std::vector<double>(), Skipper> nodecoordpair;
+	qi::rule<Iterator, TSPList()> start;
+	qi::rule<Iterator, std::string()> jibberish;
+	qi::rule<Iterator, std::string()> name;
+	qi::rule<Iterator, std::string()> type;
+	qi::rule<Iterator, std::string()> comment;
+	qi::rule<Iterator, std::string()> dimension;
+	qi::rule<Iterator, std::string()> edgeweighttype;
+	qi::rule<Iterator, TSPList()> nodecoorddata;
+	qi::rule<Iterator, std::vector<double>()> nodecoordentry;
+	qi::rule<Iterator, std::vector<double>()> nodecoordpair;
 };
 
 #endif

@@ -1,0 +1,21 @@
+"NAME:" >> string_ >>
+"TYPE:" >> string_ >>
+"COMMENT:" >> string_ >>
+"DIMENSION:" >> int_[storeDimenstion()]
+"EDGE_WEIGHT_TYPE:" >> string_
+
+
+
+
+"NODE_COORD_SECTION"
+"EOF"
+
+
+
+
+"DIMENSION:" >> int
+int_ >> float_ >> float_
+
+storeDimenstion(int const& i){
+	TSP::
+}
