@@ -22,8 +22,7 @@ template <typename Iterator>
 struct TSPParse
 : qi::grammar<Iterator, TSPList()>
 {
-	TSPParse()
-						: TSPParse::base_type(start, "tsp")
+	TSPParse(): TSPParse::base_type(start, "tsp")
 	{
 		using qi::eps;
 		using qi::int_;
