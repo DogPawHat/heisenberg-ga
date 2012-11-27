@@ -45,5 +45,4 @@ public:
 	std::vector< std::vector<double> > list(){return a;}
 	void list(std::vector< std::vector<double> > list){a = list;}
 };
-
 #endif

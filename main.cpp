@@ -1,11 +1,18 @@
+<<<<<<< HEAD
 
+=======
+>>>>>>> Fixing things
 #include "TSP.h"
 #include <vector>
 #include <iostream>
 #include <fstream>
 
+<<<<<<< HEAD
 int main(int argc, char** argv){
 
+=======
+int main(int argc, char** argv){
+>>>>>>> Fixing things
 	TSP TSPGraph (argv[1]);
 	char l;
 	std::vector< std::vector<double> > list = TSPGraph.TSP::list();
