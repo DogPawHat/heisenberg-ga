@@ -1,9 +1,11 @@
+
 #include "TSP.h"
 #include <vector>
 #include <iostream>
 #include <fstream>
 
 int main(int argc, char** argv){
+
 	TSP TSPGraph (argv[1]);
 	char l;
 	std::vector< std::vector<double> > list = TSPGraph.TSP::list();

@@ -101,11 +101,11 @@
 		<scannerConfigBuildInfo instanceId="cdt.managedbuild.toolchain.gnu.base.1901930360;cdt.managedbuild.toolchain.gnu.base.1901930360.1936944306;cdt.managedbuild.tool.gnu.cross.cpp.compiler.1229909839;cdt.managedbuild.tool.gnu.cpp.compiler.input.190080559">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="org.eclipse.cdt.managedbuilder.core.GCCManagedMakePerProjectProfileCPP"/>
 		</scannerConfigBuildInfo>
-		<scannerConfigBuildInfo instanceId="cdt.managedbuild.toolchain.gnu.base.1901930360;cdt.managedbuild.toolchain.gnu.base.1901930360.1936944306;cdt.managedbuild.tool.gnu.cross.c.compiler.2117794495;cdt.managedbuild.tool.gnu.c.compiler.input.1839575572">
-			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="org.eclipse.cdt.managedbuilder.core.GCCManagedMakePerProjectProfileC"/>
-		</scannerConfigBuildInfo>
 		<scannerConfigBuildInfo instanceId="cdt.managedbuild.toolchain.gnu.base.1901930360;cdt.managedbuild.toolchain.gnu.base.1901930360.1936944306;cdt.managedbuild.tool.gnu.c.compiler.base.1508628255;cdt.managedbuild.tool.gnu.c.compiler.input.1931723394">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="cdt.managedbuild.toolchain.gnu.base.1901930360;cdt.managedbuild.toolchain.gnu.base.1901930360.1936944306;cdt.managedbuild.tool.gnu.cross.c.compiler.2117794495;cdt.managedbuild.tool.gnu.c.compiler.input.1839575572">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="org.eclipse.cdt.managedbuilder.core.GCCManagedMakePerProjectProfileC"/>
 		</scannerConfigBuildInfo>
 		<scannerConfigBuildInfo instanceId="cdt.managedbuild.toolchain.gnu.base.1901930360;cdt.managedbuild.toolchain.gnu.base.1901930360.1936944306;cdt.managedbuild.tool.gnu.cpp.compiler.base.132065555;cdt.managedbuild.tool.gnu.cpp.compiler.input.505332794">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
