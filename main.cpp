@@ -5,7 +5,7 @@
 #include "TSPList.h"
 
 
-
+/*
 int main(int argc, char** argv){
 	TSP TSPGraph (argv[1]);
 	TSPList list = TSPGraph.TSP::list();
@@ -15,3 +15,4 @@ int main(int argc, char** argv){
 	std::cout << "Press any key to exit";
 	std::cin >> new char;
 }
+*/

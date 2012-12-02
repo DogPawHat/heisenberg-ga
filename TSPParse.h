@@ -73,7 +73,7 @@ struct TSPParse
 				<< '\n'
 		);
 
-		debug(start);
+/*		debug(start);
 		debug(jibberish);
 		debug(name);
 		debug(type);
@@ -84,7 +84,7 @@ struct TSPParse
 		debug(nodecoordlist);
 		debug(nodecoordentry);
 		debug(nodecoordpair);
-
+*/
 	}
 	qi::rule<Iterator, Skipper, TSPList()> start;
 	qi::rule<Iterator, Skipper, std::string()> jibberish;
