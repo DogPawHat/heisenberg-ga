@@ -1,10 +1,13 @@
 #ifndef TSPPARSE_H
 #define TSPPARSE_H
 
+
+
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <vector>
+#include "TSPList.h"
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/phoenix.hpp>
 
@@ -15,7 +18,7 @@ namespace ascii = boost::spirit::ascii;
 
 template <typename Iterator, typename Skipper>
 struct TSPParse
-: qi::grammar<Iterator, Skipper, std::vector< std::vector<double> >>
+: qi::grammar<Iterator, Skipper, TSPList()>
 {
 	TSPParse(): TSPParse::base_type(start, "tsp")
 	{
@@ -40,7 +43,8 @@ struct TSPParse
 		comment = "COMMENT:" >> +char_("a-zA-Z_0-9()");
 		dimension = "DIMENSION:">> int_;
 		edgeweighttype = "EDGE_WEIGHT_TYPE:" >> +char_("a-zA-Z_0-9() ");
-		nodecoorddata = "NODE_COORD_SECTION" >> char_('\n') >> (nodecoordentry % '\n')[_val = _1];
+		nodecoorddata = "NODE_COORD_SECTION" >> char_('\n') >> nodecoordlist[_val = _1];
+		nodecoordlist = nodecoordentry % '\n';
 		nodecoordentry = int_ >> nodecoordpair[_val = _1];
 		nodecoordpair = double_[push_back(_val, _1)] >> double_[push_back(_val, _1)];
 
@@ -52,6 +56,7 @@ struct TSPParse
 		dimension.name("dimension");
 		edgeweighttype.name("edgeweighttype");
 		nodecoorddata.name("nodecoorddata");
+		nodecoordlist.name("nodecoordlist");
 		nodecoordentry.name("nodecoordentry");
 		nodecoordpair.name("nodecoordpair");
 
@@ -76,18 +81,20 @@ struct TSPParse
 		debug(dimension);
 		debug(edgeweighttype);
 		debug(nodecoorddata);
+		debug(nodecoordlist);
 		debug(nodecoordentry);
 		debug(nodecoordpair);
 
 	}
-	qi::rule<Iterator, Skipper, std::vector< std::vector<double> >> start;
+	qi::rule<Iterator, Skipper, TSPList()> start;
 	qi::rule<Iterator, Skipper, std::string()> jibberish;
 	qi::rule<Iterator, Skipper, std::string()> name;
 	qi::rule<Iterator, Skipper, std::string()> type;
 	qi::rule<Iterator, Skipper, std::string()> comment;
 	qi::rule<Iterator, Skipper, std::string()> dimension;
 	qi::rule<Iterator, Skipper, std::string()> edgeweighttype;
-	qi::rule<Iterator, Skipper, std::vector< std::vector<double> >> nodecoorddata;
+	qi::rule<Iterator, Skipper, TSPList()> nodecoorddata;
+	qi::rule<Iterator, Skipper, TSPList()> nodecoordlist;
 	qi::rule<Iterator, Skipper, std::vector<double>()> nodecoordentry;
 	qi::rule<Iterator, Skipper, std::vector<double>()> nodecoordpair;
 };

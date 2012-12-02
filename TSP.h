@@ -2,6 +2,7 @@
 #define TSP_H
 
 #include "TSPParse.h"
+#include "TSPList.h"
 #include <vector>
 #include <fstream>
 #include <boost/spirit/include/qi.hpp>
@@ -15,20 +16,20 @@ namespace ascii = boost::spirit::ascii;
 
 class TSP{
 private:
-	std::vector< std::vector<double> > a;
+	TSPList a;
 public:
 	TSP(char* filename){
 		a = GetNodeListFromTSPFile(filename);
 	}
 
-	std::vector< std::vector<double> > GetNodeListFromTSPFile(char* filename){
+	TSPList GetNodeListFromTSPFile(char* filename){
 		using spirit::istream_iterator;
 		using qi::blank;
 		using qi::blank_type;
 
 		std::ifstream file;
 		file.unsetf(std::ios_base::skipws);
-		std::vector< std::vector<double> > result;
+		TSPList result;
 		TSPParse<istream_iterator, blank_type> tsp;
 
 
@@ -42,7 +43,7 @@ public:
 		return result;
 	}
 
-	std::vector< std::vector<double> > list(){return a;}
-	void list(std::vector< std::vector<double> > list){a = list;}
+	TSPList list(){return a;}
+	void list(TSPList list){a = list;}
 };
 #endif
