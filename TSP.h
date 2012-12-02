@@ -23,13 +23,13 @@ public:
 
 	std::vector< std::vector<double> > GetNodeListFromTSPFile(char* filename){
 		using spirit::istream_iterator;
-		using qi::space;
-		using qi::space_type;
+		using qi::blank;
+		using qi::blank_type;
 
 		std::ifstream file;
 		file.unsetf(std::ios_base::skipws);
 		std::vector< std::vector<double> > result;
-		TSPParse<istream_iterator> tsp;
+		TSPParse<istream_iterator, blank_type> tsp;
 
 
 
@@ -37,7 +37,7 @@ public:
 		istream_iterator begin(file);
 		istream_iterator end;
 
-		bool r = qi::parse(begin, end, tsp, result);
+		bool r = qi::phrase_parse(begin, end, tsp, blank, result);
 
 		return result;
 	}

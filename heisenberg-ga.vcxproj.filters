@@ -26,5 +26,8 @@
     <ClInclude Include="TSPParse.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="TSPList.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
