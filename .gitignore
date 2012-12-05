@@ -5,3 +5,8 @@
 /.settings
 heisenberg-ga.*
 heisenberg-ga.vcxproj.*
+makefile
+*.o
+/TSPFiles
+ab
+main
