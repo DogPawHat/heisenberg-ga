@@ -10,3 +10,5 @@ makefile
 /TSPFiles
 ab
 main
+vc100.pdb
+Output-Debug.txt

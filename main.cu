@@ -5,18 +5,18 @@
 #include <fstream>
 #include "rand.h"
 
+
+
 int main(){
-	int test[52];
-	int testHost[52];
-	int * testDevice;
-	curandState* devStates;
-	cudaMalloc(&devStates, sizeof(curandState) );
-	cudaMalloc(&testDevice, sizeof(int)*52);
-	testRand<<<1, 1>>>(testDevice, devStates);
-	cudaMemcpy(testHost, testDevice, sizeof(testDevice),cudaMemcpyDeviceToHost);
+	const int testSize = 52;
+	float testHost[testSize];
+	float * testDevice;
+	cudaMalloc((void**)&testDevice, testSize*sizeof(float));
+	testRand<<<1, 1>>>(testDevice, testSize);
+	cudaMemcpy(testHost, testDevice, sizeof(float)*testSize,cudaMemcpyDeviceToHost);
 	for (int i = 0; i < 52; i++){
-		std::cout << test[i] << std::endl;
+		std::cout << testHost[i] << std::endl;
 	}
-	std::cout << "Press any key to exit";
-	std::cin >> new char;
+	cudaFree(testDevice);
+	std::cin.get();
 }
