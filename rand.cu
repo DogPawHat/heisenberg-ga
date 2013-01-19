@@ -1,31 +1,23 @@
 #include <cuda.h>
 #include <curand_kernel.h>
+#include <thrust/random/uniform_int_distribution.h>
+#include <thrust/random/linear_congruential_engine.h>
 
+using thrust::random::minstd_rand0;
+using thrust::random::uniform_int_distribution;
 
 //Create an random int array repesenting a solution to a TSP. For inisziation.
-__device__ void doRand(int start[], int size, curandState devStates[]){
-	int tx = threadIdx.x;
-	for(unsigned int i = 0; i < size; i++){
-		curand_init(456723, tx, 0, &devStates[i]);
-	}
-	int * result = (int*) malloc(size*sizeof(int));
+__global__ void createRandomPermutation(int* source, int* result, int size, long seed){
 	int rand;
-	for(unsigned int i = 0; i < 52; i++){
-		rand = floor(curand_uniform(&devStates[i]) * (52-i));
-		result[i] = start[rand];
-		start[rand] = start[size - i];
+	int start = (threadIdx.x + blockIdx.x*blockDim.x)*size;
+	int* tempSource = (int*) malloc(sizeof(int)*size);
+	memcpy(tempSource, source, sizeof(int)*size);
+	minstd_rand0 rng(seed+(threadIdx.x + blockIdx.x*blockDim.x));
+	for(int i = 0; i < size; i++){
+		uniform_int_distribution<int> dist(0,(size-i));
+		rand = dist(rng);
+		result[start+i] = tempSource[rand];
+		tempSource[rand] = tempSource[(size-i)-1];
 	}
-	memcpy(start, result, size*sizeof(int));
-}
-
-__global__ void testRand(float test[], const int size){
-	curandState *devStates = (curandState*) malloc(size*sizeof(curandState));
-	int tx = threadIdx.x;
-	for(unsigned int i = 0; i < size; i++){
-		curand_init(456723, tx, 0, &devStates[i]);
-	}
-	for(unsigned int i = 0; i < 52; i++){
-		test[i] = curand_uniform(&devStates[i]);
-	}
-	free(devStates);
+	free(tempSource);
 }
