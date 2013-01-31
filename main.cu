@@ -10,16 +10,19 @@
 #include "rand.h"
 
 #define BLOCK_SIZE 32
+#define GRID_SIZE 10
+#define POPULATION_MULTIPLIER 5
 
 int main(){
 	const int gridSize = 10;
-	const int populationSize = BLOCK_SIZE*gridSize;
+	const int populationSize = BLOCK_SIZE*GRID_SIZE;
 	const int chromosomeSize = 52;
 	int* source;
 	int* devicePopulation;
 	int* deviceTSPRoute;
-	int hostPopulation[populationSize*chromosomeSize];
+	int* hostPopulation;
 
+	cudaMallocHost((void**) &hostPopulation, populationSize*sizeof(int));
 	cudaMalloc((void**) &source, chromosomeSize*sizeof(int));
 	cudaMalloc((void**) &devicePopulation, populationSize*sizeof(int));
 	cudaMalloc((void**) &deviceTSPRoute, chromosomeSize*2*sizeof(float));
@@ -41,5 +44,6 @@ int main(){
 	cudaFree(devicePopulation);
 	cudaFree(deviceTSPRoute);
 	cudaFree(source);
+	cudaHostFree(hostPopulation);
 	std::cin.get();
 }
