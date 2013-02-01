@@ -16,13 +16,13 @@ __device__ float * selection(int * matingPool, int * islandPoplulation, float * 
 	fitnessValues[threadIdx.x] = finessValues[threadIdx.x]/totalFitnessValue;
 	__syncthreads();
 
-	float rulettball = randomRoulletBall(); //spell rulett properly when your sober :D
-	unsigned float diff = fitnessValues[threadIdx.x] - rulettball;
+	float rouletteBall = randomrouletteBall();
+	unsigned float diff = fdif(fitnessValues[threadIdx.x], rouletteBall);
 	memcpy(selectedIndividual, &islandPopulation[threadIdx.x*chromosomeSize], sizeof(int)*chromosomeSize);
 
 	for(int i = 0; i < popLength; i++){
-		if(diff < fitnessValues[i] - rulettball;){
-			diff = itnessValues[i] - rulettball;
+		if(diff < fitnessValues[i] - rouletteBall){
+			fdif(fitnessValues[threadIdx.x], rouletteBall);
 			memcpy(selectedChromosome, &islandPopulation[i*chromosomeSize], sizeof(int)*chromosomeSize);
 		}
 		__syncthreads();
@@ -32,9 +32,10 @@ __device__ float * selection(int * matingPool, int * islandPoplulation, float * 
 
 __device__ void generation(islandPopulation, poplulation, tspGraph, chromosoneSize, popLength, graphSize, popMultipler){
 	__shared__ float matingPool[blockDim.x*chromosoneSize];
-	memcpy(&matingPool[threadIdx.x*chromosoneSize], &selection(matingPool, islandPopulation, tspGraph, chromosoneSize, popLength/gridDim.x, graphSize), sizeof(float)*chromosomeSize);
+	memcpy(&matingPool[threadIdx.x*chromosoneSize], selection(matingPool, islandPopulation, tspGraph, chromosoneSize, popLength/gridDim.x, graphSize), sizeof(float)*chromosomeSize);
+	__syncthreads();
 	for(int i=0; i < popMultiplier; i++){
-		memcpy(&islandPopulation[(threadIdx*popMultiplier+i)*chromosomeSize], &poplulation[(gridIndex*popMultiplier+i)*chromosomeSize], chromosomesize*sizeof(int));
+		memcpy(&islandPopulation[(threadIdx*popMultiplier+i)*chromosomeSize], &matingPool[threadIdx.x*chromosoneSize], chromosomesize*sizeof(int));
 	}
 }
 
