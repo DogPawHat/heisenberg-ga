@@ -8,29 +8,25 @@
 #include <thrust/sequence.h>
 #include "berlin52.h"
 #include "rand.h"
+#include "ga_struts.h"
 
 #define BLOCK_SIZE 32
 #define GRID_SIZE 10
-#define POPULATION_MULTIPLIER 5
 
 int main(){
-	const int gridSize = 10;
-	const int populationSize = BLOCK_SIZE*GRID_SIZE;
-	const int chromosomeSize = 52;
-	int* source;
-	int* devicePopulation;
-	int* deviceTSPRoute;
-	int* hostPopulation;
+	fieldSizes sizes = {BLOCK_SIZE*GRID_SIZE, 52};
+	hostFields host;
+	deviceFields device;
 
-	cudaMallocHost((void**) &hostPopulation, populationSize*sizeof(int));
-	cudaMalloc((void**) &source, chromosomeSize*sizeof(int));
-	cudaMalloc((void**) &devicePopulation, populationSize*sizeof(int));
-	cudaMalloc((void**) &deviceTSPRoute, chromosomeSize*2*sizeof(float));
-	cudaMemcpy(deviceTSPRoute, berlin52, chromosomeSize*2*sizeof(float), cudaMemcpyHostToDevice);
+	cudaMallocHost((void**) &host.population, sizes.populationSize*sizeof(int));
+	cudaMalloc((void**) &device.source, sizes.chromosomeSize*sizeof(int));
+	cudaMalloc((void**) &device.population, sizes.populationSize*sizeof(int));
+	cudaMalloc((void**) &device.TSPGraph, sizes.chromosomeSize*2*sizeof(float));
+	cudaMemcpy(device.TSPGraph, berlin52, sizes.chromosomeSize*2*sizeof(float), cudaMemcpyHostToDevice);
 	thrust::device_ptr<int> sourceThrust = thrust::device_pointer_cast(source);
-	thrust::sequence(sourceThrust, sourceThrust + chromosomeSize);
+	thrust::sequence(sourceThrust, sourceThrust + sizes.chromosomeSize);
 
-	createRandomPermutation<<<gridSize, BLOCK_SIZE>>>(source, devicePopulation, chromosomeSize, time(NULL));
+	createRandomPermutation<<<GRID_SIZE, BLOCK_SIZE>>>(device, sizes, time(NULL));
 	cudaDeviceSynchronize();
 
 	cudaMemcpy(hostPopulation, devicePopulation, populationSize*sizeof(int),cudaMemcpyDeviceToHost);
