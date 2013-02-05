@@ -1,17 +1,18 @@
 #include <cuda.h>
 #include <math.h>
 #include "ga_struts.h"
+#include <thrust/random/linear_congruential_engine.h>
+#include <thrust/random/uniform_real_distribution.h>
 
 __device__ float randomRouletteBall(){
 	thrust::minstd_rand rng;
 	thrust::uniform_real_distribution<float> dist(0, 1000);
-	return dist(rnt);
+	return dist(rng);
 }
 
-__device__ float * selection(int * matingPool, int * islandPoplulation, deviceFields fields, fieldSizes sizes){
+__device__ float * selection(int * matingPool, int * islandPoplulation, deviceFields fields, const fieldSizes sizes){
 	__shared__ float fitnessValues[sizes.populationSize];
 	__shared__ float totalFinessValue;
-	thrust:minstd_rand rng;
 	float selectedChromosome[sizes.chromosomeSize];
 	int start = islandPoplulation[threadIdx.x*sizes.chromosoneSize];
 	for(int i = 1; i < sizes.chromosoneSize; i++){
@@ -38,7 +39,7 @@ __device__ float * selection(int * matingPool, int * islandPoplulation, deviceFi
 	return selectedIndividual;
 }
 
-__device__ void generation(int * islandPopulation, deviceFields fields, fieldSizes sizes){
+__device__ void generation(int * islandPopulation, deviceFields fields, const fieldSizes sizes){
 	__shared__ float matingPool[sizes.populationSize/10];
 	memcpy(&matingPool[threadIdx.x*sizes.chromosomeSize], selection(matingPool, islandPopulation, fields, sizes), sizeof(float)*chromosomeSize);
 	__syncthreads();
@@ -48,7 +49,7 @@ __device__ void generation(int * islandPopulation, deviceFields fields, fieldSiz
 }
 
 
-__global__ void runGeneticAlgorithm(deviceFields fields, fieldSizes sizes){
+__global__ void runGeneticAlgorithm(deviceFields fields, const fieldSizes sizes){
 	int gridIndex = threadIdx.x + blockDim.x*blockIdx.x;
 	__shared__ int islandPopulation[sizes.populationSize];
 	memcpy(&islandPopulation[threadIdx*chromosomeSize], &fields.poplulation[gridIndex*chromosomeSize], sizes.chromosoneSize*sizeof(int));

@@ -14,7 +14,7 @@
 #define GRID_SIZE 10
 
 int main(){
-	fieldSizes sizes = {BLOCK_SIZE*GRID_SIZE, 52};
+	const fieldSizes sizes = {BLOCK_SIZE*GRID_SIZE, 52};
 	hostFields host;
 	deviceFields device;
 

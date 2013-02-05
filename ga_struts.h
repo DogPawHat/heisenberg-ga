@@ -1,20 +1,22 @@
 #ifndef GA_STRUTS_H
 #define GA_STRUTS_H
 
-struct fieldSizes{
+#include<cuda.h>
+
+typedef struct{
 	const int populationSize;
 	const int chromosomeSize;
-}
+} fieldSizes;
 
 
-struct deviceFields{
+typedef struct {
 	int* population;
 	int* TSPGraph;
 	int* source;
-}
+} deviceFields;
 
-struct hostFields{
+typedef struct{
 	int* population;
-}
+} hostFields;
 
 #endif
