@@ -6,16 +6,17 @@
 
 __device__ float randomRouletteBall(){
 	thrust::minstd_rand rng;
-	thrust::uniform_real_distribution<float> dist(0, 1000);
+	thrust::uniform_real_distribution<float> dist(0, 1);
 	return dist(rng);
 }
 
-__device__ float * selection(int * matingPool, int * islandPoplulation, deviceFields fields, const fieldSizes sizes){
-	__shared__ float fitnessValues[sizes.populationSize];
+__device__ float* selection(int* matingPool, int* islandPoplulation, deviceFields fields, const fieldSizes sizes){
+	__shared__ float* fitnessValues;
+	fitnessValues = (float*) malloc(sizeof(float)*sizes.populationSize);
 	__shared__ float totalFinessValue;
-	float selectedChromosome[sizes.chromosomeSize];
-	int start = islandPoplulation[threadIdx.x*sizes.chromosoneSize];
-	for(int i = 1; i < sizes.chromosoneSize; i++){
+	int* selectedChromosome = (int*) malloc(sizeof(int)*sizes.populationSize);
+	int start = islandPoplulation[threadIdx.x*sizes.chromosomeSize];
+	for(int i = 1; i < sizes.chromosomeSize; i++){
 		float xd = tspGraph[start+(i*2)] - tspGraph[start+(i*2)-2];
 		float yd = tspGraph[start+(i*2)+1] - tspGraph[start+(i*2)-1];
 		fitnessValues[threadIdx.x] += sqrt(xd^2 + yd^2);
