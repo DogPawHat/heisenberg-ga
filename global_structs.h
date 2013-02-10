@@ -1,19 +1,18 @@
 #ifndef GLOBAL_STRUCTS
 #define GLOBAL_STRUCTS
 
-struct deviceFields{
+typedef struct{
 	int * population;
 	int * source;
 	int * TSPGraph;
-};
+} deviceFields;
 
-struct hostFields{
+typedef struct{
 	int * population;
-};
+} hostFields;
 
-struct fieldSizes
-{
+typedef struct{
 	int populationSize, islandPopulationSize, chromosomeSize;
-};
+} fieldSizes;
 
 #endif
