@@ -2,7 +2,7 @@
 #include <curand_kernel.h>
 #include <thrust/random/uniform_int_distribution.h>
 #include <thrust/random/linear_congruential_engine.h>
-#include "ga_struts.h"
+#include "global_structs.h"
 
 using thrust::random::minstd_rand0;
 using thrust::random::uniform_int_distribution;
