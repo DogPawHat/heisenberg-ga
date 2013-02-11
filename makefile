@@ -1,37 +1,61 @@
 CUDA_INSTALL_PATH ?= /usr/local/cuda
-BOOST_INCLUDE_PATH ?= /home/ciaran/include
+BOOST_INSTALL_PATH ?= /home/ciaran/include
+#
+# On windows, store location of Visual Studio compiler
+# into the environment. This will be picked up by nvcc,
+# even without explicitly being passed.
+# On Linux, use whatever gcc is in the current path
+# (so leave compiler-bindir undefined):
+#
+ifdef ON_WINDOWS
+export compiler-bindir := c:/mvs/bin
+endif
+NVCC := nvcc
 
-CXX := g++
-CC := gcc
-LINK := g++ -fPIC
-NVCC := nvcc -ccbin /usr/bin
 
-# Includes
-INCLUDES = -I. -I$(CUDA_INSTALL_PATH)/include -I$(BOOST_INCLUDE_PATH)
-
-# Common flags
-COMMONFLAGS += $(INCLUDES)
-NVCCFLAGS += $(COMMONFLAGS)
-CXXFLAGS += $(COMMONFLAGS)
-CFLAGS += $(COMMONFLAGS)
-
-LIB_CUDA := -L$(CUDA_INSTALL_PATH)/lib -lcudart
+INCLUDES = -I. -I$(CUDA_INSTALL_PATH)/include -I$(BOOST_INSTALL_PATH)
+export OPENCC_FLAGS :=
+export PTXAS_FLAGS :=
+CFLAGS := $(OPENCC_FLAGS) $(PTXAS_FLAGS) $(INCLUDES) -arch sm_20
+LDFLAGS := -L$(CUDA_INSTALL_PATH)/lib -lcudart
+#
+# cuda and C/C++ compilation rules, with
+# dependency generation:
+#
 
 BUILD_DIR = build
-OBJS =  $(BUILD_DIR)/main.cu.o $(BUILD_DIR)/rand.cu.o $(BUILD_DIR)/algorithmkernel.cu.o
-TARGET = $(BUILD_DIR)/heisenburg-ga
-LINKLINE = $(LINK) -o $(TARGET) $(OBJS) $(LIB_CUDA)
 
-.SUFFIXES: .c .cpp .cu .o
 
-$(BUILD_DIR)/%.c.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BUILD_DIR)/%.cu.o: %.cu
-	$(NVCC) $(NVCCFLAGS) -c $< -o $@
+$(BUILD_DIR)/%.o : %.cpp
+	$(NVCC) -c $< $(CFLAGS) -o $@
+	$(NVCC) -M $< $(CFLAGS) > $@.dep
+$(BUILD_DIR)/%.o : %.c
+	$(NVCC) -c $< $(CFLAGS) -o $@
+	$(NVCC) -M $< $(CFLAGS) > $@.dep
+$(BUILD_DIR)/%.o : %.cu
+	$(NVCC) -c $< $(CFLAGS) -o $@
+	$(NVCC) -M $< $(CFLAGS) > $@.dep
+#
+# Pick up generated dependency files, and
+# add /dev/null because gmake does not consider
+# an empty list to be a list:
+#
+include $(wildcard *.dep) /dev/null
+#
+# Define the application;
+# for each object file, there must be a
+# corresponding .c or .cpp or .cu file:
+#
 
-$(BUILD_DIR)/%.cpp.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+OBJECTS = $(BUILD_DIR)/main.o $(BUILD_DIR)/rand.o $(BUILD_DIR)/algorithmkernel.o
+APP = $(BUILD_DIR)/heisenburg-ga
+$(APP) : $(OBJECTS)
+	$(NVCC) $(OBJECTS) $(LDFLAGS) -o $@
+#
+# Cleanup:
+#
+clean :
+	$(RM) $(OBJECTS) *.dep
 
-$(TARGET): $(OBJS) Makefile
-	$(LINKLINE)
+
