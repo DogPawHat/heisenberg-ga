@@ -20,9 +20,9 @@ int main(){
 	sizes.islandPopulationSize = BLOCK_SIZE;
 	sizes.chromosomeSize = 52;
 
-	cudaMallocHost((void**) &host.population, sizes.populationSize*sizeof(int));
+	cudaMallocHost((void**) &host.population, sizes.populationSize*sizes.chromosomeSize*sizeof(int));
 	cudaMalloc((void**) &device.source, sizes.chromosomeSize*sizeof(int));
-	cudaMalloc((void**) &device.population, sizes.populationSize*sizeof(int));
+	cudaMalloc((void**) &device.population, sizes.populationSize*sizes.chromosomeSize*sizeof(int));
 	cudaMalloc((void**) &device.TSPGraph, sizes.chromosomeSize*2*sizeof(float));
 	cudaMemcpy(device.TSPGraph, berlin52, sizes.chromosomeSize*2*sizeof(float), cudaMemcpyHostToDevice);
 	thrust::device_ptr<int> sourceThrust = thrust::device_pointer_cast(device.source);
@@ -31,7 +31,7 @@ int main(){
 	createRandomPermutation<<<GRID_SIZE, BLOCK_SIZE>>>(sizes, device, time(NULL));
 	cudaDeviceSynchronize();
 
-	cudaMemcpy(host.population, device.population, sizes.populationSize*sizeof(int),cudaMemcpyDeviceToHost);
+	cudaMemcpy(host.population, device.population, sizes.populationSize*sizes.chromosomeSize*sizeof(int),cudaMemcpyDeviceToHost);
 
 	for (int i = 0; i < sizes.populationSize; i++){
 		for(int j = 0; j < sizes.chromosomeSize; j++){
