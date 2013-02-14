@@ -4,29 +4,28 @@
 #include <thrust/random/uniform_real_distribution.h>
 #include "global_structs.h"
 
-extern __shared__ int islandPopulation[];
 
+/*
 __device__ __noinline__ float randomRouletteBall(){
 	thrust::minstd_rand rng;
 	thrust::uniform_real_distribution<float> dist(0, 1);
 	return dist(rng);
 }
 
-__device__ __noinline__ int* selection(int* matingPool, int* islandPopulation, deviceFields fields, fieldSizes sizes){
-	__shared__ float* fitnessValues;
-	if(threadIdx.x ==0){
-		fitnessValues = (float*) malloc(sizeof(float)*sizes.islandPopulationSize);
-	}
+__device__ __noinline__ int* selection(int* matingPool, int* islandPopulation, deviceFields fields){
+	__shared__ float fitnessValues[ISLAND_POPULATION_SIZE];
 	__shared__ float totalFitnessValue;
-	int* selectedChromosome = (int*) malloc(sizeof(int)*sizes.populationSize);
-	int start = islandPopulation[threadIdx.x*sizes.chromosomeSize];
-	for(int i = 1; i < sizes.chromosomeSize; i++){
+	short selectedChromosome[CHROMOSOME_SIZE];
+	int start = islandPopulation[threadIdx.x*CHROMOSOME_SIZE];
+
+	for(int i = 1; i < CHROMOSOME_SIZE; i++){
 		float xd = fields.TSPGraph[start+(i*2)] - fields.TSPGraph[start+(i*2)-2];
 		float yd = fields.TSPGraph[start+(i*2)+1] - fields.TSPGraph[start+(i*2)-1];
 		fitnessValues[threadIdx.x] = sqrtf(xd*xd + yd*yd);
 		totalFitnessValue += sqrtf(xd*xd + yd*yd);
 		__syncthreads();
 	}
+
 	fitnessValues[threadIdx.x] = fitnessValues[threadIdx.x]/totalFitnessValue;
 	__syncthreads();
 
@@ -46,38 +45,32 @@ __device__ __noinline__ int* selection(int* matingPool, int* islandPopulation, d
 	return selectedChromosome;
 }
 
-/*__device__ __noinline__ void generation(int * islandPopulation, deviceFields fields, fieldSizes sizes){
-	__shared__ int * matingPool;
-	if(){
-		matingPool = (int*) malloc(sizes.totalIslandPopulationMemorySize()/16*sizeof(int));
-	}
-	__syncthreads();
+__device__ __noinline__ void generation(short * islandPopulation, deviceFields fields){
+	__shared__ short matingPool[MATING_POOL_SIZE]
+}
+*/
 
-	memcpy(&matingPool[threadIdx.x*sizes.chromosomeSize], selection(matingPool, islandPopulation, fields, sizes), sizeof(float)*sizes.chromosomeSize);
-	__syncthreads();
-
-	memcpy(&islandPopulation[threadIdx.x*sizes.chromosomeSize], &matingPool[threadIdx.x*sizes.chromosomeSize], sizes.chromosomeSize*sizeof(int));
-	__syncthreads();
-	if(threadIdx.x == 0){
-		free(matingPool);
-	}
-}*/
-
-
-__global__ void runGeneticAlgorithm(deviceFields fields, fieldSizes sizes){
+__global__ void runGeneticAlgorithm(deviceFields fields){
 	int gridIndex = threadIdx.x + blockDim.x*blockIdx.x;
-	extern __shared__ int islandPopulation[];
+	__shared__ short islandPopulation[ISLAND_POPULATION_SIZE];
 
-	memcpy(&islandPopulation[threadIdx.x*sizes.chromosomeSize], &fields.population[gridIndex*sizes.chromosomeSize], sizes.chromosomeSize*sizeof(int));
-	__syncthreads();
-
-//	generation(islandPopulation, fields, sizes);
-//	__syncthreads();
-
-	memcpy(&fields.population[gridIndex*sizes.chromosomeSize], &islandPopulation[threadIdx.x*sizes.chromosomeSize], sizes.chromosomeSize*sizeof(int));
-	__syncthreads();
-
-	if(threadIdx.x == 0){
-		free(islandPopulation);
+/*
+	for(short i = 0; i < CHROMOSOME_SIZE; i++){
+		islandPopulation[threadIdx.x+i] = fields.population[gridIndex+i];
 	}
+	__syncthreads();
+*/
+
+	memcpy(&islandPopulation[threadIdx.x], &fields.population[gridIndex], CHROMOSOME_SIZE*sizeof(short));
+	__syncthreads();
+
+
+/*	for(short i = 0; i < CHROMOSOME_SIZE; i++){
+		fields.population[gridIndex+i] = islandPopulation[threadIdx.x+i];
+	}
+	__syncthreads();
+*/
+
+	memcpy(&islandPopulation[threadIdx.x], &fields.population[gridIndex], CHROMOSOME_SIZE*sizeof(short));
+	__syncthreads();
 }
