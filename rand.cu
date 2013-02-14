@@ -8,17 +8,25 @@ using thrust::random::minstd_rand0;
 using thrust::random::uniform_int_distribution;
 
 //Create an random int array repesenting a solution to a TSP. For inisziation.
-__global__ void createRandomPermutation(fieldSizes sizes, deviceFields fields, long seed){
-	int rand;
-	int start = (threadIdx.x + blockIdx.x*blockDim.x)*sizes.chromosomeSize;
-	int* tempSource = (int*) malloc(sizeof(int)*sizes.chromosomeSize);
-	memcpy(tempSource, fields.source, sizeof(int)*sizes.chromosomeSize);
+__global__ void createRandomPermutation(deviceFields fields, long seed){
+	short tempResult[CHROMOSOME_SIZE];
+	short rand;
+	short start = (threadIdx.x + blockIdx.x*blockDim.x)*CHROMOSOME_SIZE;
+
 	minstd_rand0 rng(seed+(threadIdx.x + blockIdx.x*blockDim.x));
-	for(int i = 0; i < sizes.chromosomeSize; i++){
-		uniform_int_distribution<int> dist(0,(sizes.chromosomeSize-i));
-		rand = dist(rng);
-		fields.population[start+i] = tempSource[rand];
-		tempSource[rand] = tempSource[(sizes.chromosomeSize-i)-1];
+
+	for(short i = 0; i < CHROMOSOME_SIZE; i++){
+		tempResult[i] = 0;
 	}
-	free(tempSource);
+
+	for(short i = 1; i < CHROMOSOME_SIZE; i++){
+		uniform_int_distribution<short> dist(0,i+1);
+		rand = dist(rng);
+		tempResult[start+i] = tempResult[rand];
+		tempResult[rand] = fields.source[i];
+	}
+
+	for(short i = 0; i < CHROMOSOME_SIZE; i++){
+		fields.population[start+i] = tempResult[i];
+	}
 }
