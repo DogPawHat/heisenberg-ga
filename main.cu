@@ -6,7 +6,7 @@
 #include "berlin52.h"
 
 __global__ void createRandomPermutation(deviceFields fields, long seed);
-//__global__ void runGeneticAlgorithm(deviceFields fields);
+__global__ void runGeneticAlgorithm(deviceFields fields);
 
 int main(){
 	deviceFields device;
@@ -23,8 +23,8 @@ int main(){
 	createRandomPermutation<<<GRID_SIZE, BLOCK_SIZE>>>(device, time(NULL));
 	cudaDeviceSynchronize();
 
-//	runGeneticAlgorithm<<<GRID_SIZE, BLOCK_SIZE>>>(device, sizes);
-//	cudaDeviceSynchronize();
+	runGeneticAlgorithm<<<GRID_SIZE, BLOCK_SIZE>>>(device);
+	cudaDeviceSynchronize();
 
 	cudaMemcpy(host.population, device.population, TOTAL_POPULATION_MEMORY_SIZE*sizeof(short),cudaMemcpyDeviceToHost);
 
