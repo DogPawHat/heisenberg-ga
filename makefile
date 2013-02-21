@@ -49,7 +49,7 @@ include $(wildcard *.dep) /dev/null
 #
 
 OBJECTS = $(BUILD_DIR)/main.o $(BUILD_DIR)/rand.o $(BUILD_DIR)/algorithmkernel.o
-APP = $(BUILD_DIR)/heisenburg-ga
+APP = $(BUILD_DIR)/heisenberg-ga
 $(APP) : $(OBJECTS)
 	$(NVCC) $(OBJECTS) $(LDFLAGS) -o $@
 #

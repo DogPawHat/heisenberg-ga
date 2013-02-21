@@ -5,6 +5,22 @@
 #include "global_structs.h"
 
 
+__device__ void maximize(float* fitnessValues, float output) {
+	__shared__ float partialMax[ISLAND_POPULATION_SIZE];
+	unsigned int t = threadIdx.x;
+	partialSum[t] = fitnessValues[t];
+	for(unsigned int stride = ISLAND_POPULATION_SIZE; stride > 0; stride /= 2){
+	__syncthreads();
+		if(t<stride){
+    			partialMax[t] =fmaxf(partialMax[t],partialSum[t+stride]);
+		}
+	}
+
+	if(t == 0){
+		output = partialMax[0];	
+	}
+}
+
 
 __device__ __noinline__ float randomRouletteBall(){
 	thrust::minstd_rand rng;
@@ -15,17 +31,18 @@ __device__ __noinline__ float randomRouletteBall(){
 __device__ __noinline__ void selection(short* selectedMates, short* islandPopulation, deviceFields fields){
 	__shared__ float fitnessValues[ISLAND_POPULATION_SIZE];
 	__shared__ float totalFitnessValue;
-	short start = islandPopulation[threadIdx.x*CHROMOSOME_SIZE];
+	__shared__ float worstFitnessValue;
+	short start = threadIdx.x*CHROMOSOME_SIZE;
 
 	for(int i = 1; i < CHROMOSOME_SIZE; i++){
-		float xd = fields.TSPGraph[start+(i*2)] - fields.TSPGraph[start+(i*2)-2];
-		float yd = fields.TSPGraph[start+(i*2)+1] - fields.TSPGraph[start+(i*2)-1];
-		fitnessValues[threadIdx.x] = sqrtf(xd*xd + yd*yd);
-		totalFitnessValue += sqrtf(xd*xd + yd*yd);
+		float xd = fdimf(fields.TSPGraph[islandPopulation[start+(i*2)]], fields.TSPGraph[islandPopulation[start+(i*2)-2]]);
+		float yd = fdimf(fields.TSPGraph[islandPopulation[start+(i*2)+1]], fields.TSPGraph[islandPopulation[start+(i*2)-1]]);
+		fitnessValues[threadIdx.x] += sqrtf(xd*xd + yd*yd);
 		__syncthreads();
 	}
-
+	
 	fitnessValues[threadIdx.x] = fitnessValues[threadIdx.x]/totalFitnessValue;
+	fitnessValues[threadIdx.x] = 1 - fitnessValues[threadIdx.x];
 	__syncthreads();
 
 	float rouletteBall = randomRouletteBall();
