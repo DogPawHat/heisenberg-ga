@@ -4,24 +4,6 @@
 #include <thrust/random/uniform_real_distribution.h>
 #include "global_structs.h"
 
-
-__device__ void maximize(float* fitnessValues, float output) {
-	__shared__ float partialMax[ISLAND_POPULATION_SIZE];
-	unsigned int t = threadIdx.x;
-	partialSum[t] = fitnessValues[t];
-	for(unsigned int stride = ISLAND_POPULATION_SIZE; stride > 0; stride /= 2){
-	__syncthreads();
-		if(t<stride){
-    			partialMax[t] =fmaxf(partialMax[t],partialSum[t+stride]);
-		}
-	}
-
-	if(t == 0){
-		output = partialMax[0];	
-	}
-}
-
-
 __device__ __noinline__ float randomRouletteBall(){
 	thrust::minstd_rand rng;
 	thrust::uniform_real_distribution<float> dist(0, 1);
@@ -46,14 +28,15 @@ __device__ __noinline__ void selection(short* selectedMates, short* islandPopula
 	__syncthreads();
 
 	float rouletteBall = randomRouletteBall();
-	float diff = fdimf(fitnessValues[threadIdx.x], rouletteBall);
-	memcpy(&selectedMates[start], &islandPopulation[start], CHROMOSOME_SIZE*sizeof(short));
+	float currentFitnessInterval = fitnessValues[0];
+	memcpy(&selectedMates[start], &islandPopulation[0], CHROMOSOME_SIZE*sizeof(short));
 
-	for(short i = 0; i < ISLAND_POPULATION_SIZE; i++){
-		float newDiff = fdimf(fitnessValues[i], rouletteBall);
-		if(newDiff < diff){
-			diff = newDiff;
+	for(short i = 1; i < ISLAND_POPULATION_SIZE; i++){
+		if(fitnessValues[i] > currentFitnessInterval){
+			currentFitnessInterval += fitnessValues[i];
+		}else{
 			memcpy(&selectedMates[start], &islandPopulation[i*CHROMOSOME_SIZE], CHROMOSOME_SIZE*sizeof(short));
+			break;
 		}
 	}
 }
