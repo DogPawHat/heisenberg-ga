@@ -13,9 +13,11 @@ int main(){
 	hostFields host;
 
 	host.population = (short*) malloc(TOTAL_POPULATION_MEMORY_SIZE*sizeof(short));
+	host.seeds = (int*) malloc(TOTAL_POPULATION_MEMORY_SIZE*sizeof(int));
 	cudaMalloc((void**) &device.source, CHROMOSOME_SIZE*sizeof(short));
 	cudaMalloc((void**) &device.population,  TOTAL_POPULATION_MEMORY_SIZE*sizeof(short));
 	cudaMalloc((void**) &device.TSPGraph, CHROMOSOME_SIZE*2*sizeof(float));
+	cudaMalloc((void**) &device.seeds, TOTAL_POPULATION_MEMORY_SIZE*sizeof(int));
 	cudaMemcpy(device.TSPGraph, berlin52, CHROMOSOME_SIZE*2*sizeof(float), cudaMemcpyHostToDevice);
 	thrust::device_ptr<short> sourceThrust = thrust::device_pointer_cast(device.source);
 	thrust::sequence(sourceThrust, sourceThrust + CHROMOSOME_SIZE);

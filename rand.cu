@@ -14,7 +14,7 @@ __global__ void createRandomPermutation(deviceFields fields, long seed){
 	short rand;
 	short start = (threadIdx.x + blockIdx.x*blockDim.x)*CHROMOSOME_SIZE;
 
-	minstd_rand0 rng(seed+(threadIdx.x + blockIdx.x*blockDim.x));
+	minstd_rand0 rng(seed*(threadIdx.x + blockIdx.x*blockDim.x)-341256);
 
 	for(short i = 0; i < CHROMOSOME_SIZE; i++){
 		tempResult[i] = fields.source[i];
@@ -31,4 +31,11 @@ __global__ void createRandomPermutation(deviceFields fields, long seed){
 	for(short i = 0; i < CHROMOSOME_SIZE; i++){
 		fields.population[start+i] = tempResult[i];
 	}
+}
+
+__global__ void createRandomPermutation(deviceFields fields, long seed){
+	minstd_rand0 rng(seed*(threadIdx.x + blockIdx.x*blockDim.x)-34156);
+
+	uniform_int_distribution<int> dist(0,RAND_MAX);
+	fields.seeds[threadIdx.x + blockDim*blockIdx.x]=dist(rng);
 }

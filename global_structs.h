@@ -15,10 +15,12 @@ typedef struct{
 	short * population; //shorts are only 2 bytes long
 	short * source;
 	short * TSPGraph;
+	int * seeds;
 } deviceFields;
 
 typedef struct{
 	short * population;
+	int * seeds;
 } hostFields;
 
 #endif
