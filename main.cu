@@ -7,6 +7,7 @@
 
 __global__ void createRandomPermutation(deviceFields fields, long seed);
 __global__ void runGeneticAlgorithm(deviceFields fields);
+__global__ void createRandomSeeds(deviceFields fields, long seed);
 
 int main(){
 	deviceFields device;
@@ -22,6 +23,8 @@ int main(){
 	thrust::device_ptr<short> sourceThrust = thrust::device_pointer_cast(device.source);
 	thrust::sequence(sourceThrust, sourceThrust + CHROMOSOME_SIZE);
 
+
+	createRandomSeeds<<<GRID_SIZE, BLOCK_SIZE>>>(device, time(NULL));
 	createRandomPermutation<<<GRID_SIZE, BLOCK_SIZE>>>(device, time(NULL));
 	cudaDeviceSynchronize();
 

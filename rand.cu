@@ -33,9 +33,9 @@ __global__ void createRandomPermutation(deviceFields fields, long seed){
 	}
 }
 
-__global__ void createRandomPermutation(deviceFields fields, long seed){
+__global__ void createRandomSeeds(deviceFields fields, long seed){
 	minstd_rand0 rng(seed*(threadIdx.x + blockIdx.x*blockDim.x)-34156);
 
 	uniform_int_distribution<int> dist(0,RAND_MAX);
-	fields.seeds[threadIdx.x + blockDim*blockIdx.x]=dist(rng);
+	fields.seeds[threadIdx.x + blockDim.x*blockIdx.x]=dist(rng);
 }

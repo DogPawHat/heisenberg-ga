@@ -4,17 +4,15 @@
 #include <thrust/random/uniform_real_distribution.h>
 #include "global_structs.h"
 
-__device__ __forceinline__ float randomRouletteBall(){
-	thrust::minstd_rand rng;
-	thrust::uniform_real_distribution<float> dist(0, 1);
-	return dist(rng);
+__device__ __forceinline__ void randomRouletteBall(deviceFields fields, float * rouletteBall){
+	thrust::minstd_rand rng(fields.seeds[threadIdx.x + blockDim.x*blockIdx.x]);
+	thrust::uniform_int_distribution<float> dist(0, 1);
+	*rouletteBall = dist(rng);
 }
 
 __device__ __forceinline__ void selection(short* selectedMates, short* islandPopulation, deviceFields fields){
 	__shared__ float fitnessValues[ISLAND_POPULATION_SIZE];
 	__shared__ float sumOfFitnessValues[ISLAND_POPULATION_SIZE];
-	__shared__ float totalFitnessValue;
-	__shared__ float worstFitnessValue;
 	short start = threadIdx.x*CHROMOSOME_SIZE;
 
 	for(short i = 1; i < CHROMOSOME_SIZE; i++){
@@ -40,7 +38,7 @@ __device__ __forceinline__ void selection(short* selectedMates, short* islandPop
 
 	
 
-	float rouletteBall = randomRouletteBall();
+	randomRouletteBall(fields, &rouletteBall);
 	float currentFitnessInterval = fitnessValues[0];
 	for(short i = 0; i < CHROMOSOME_SIZE; i++){
 		selectedMates[threadIdx.x*CHROMOSOME_SIZE+i] = islandPopulation[i];
