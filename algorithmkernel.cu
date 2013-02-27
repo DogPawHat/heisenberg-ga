@@ -47,7 +47,7 @@ __device__ __forceinline__ void selection(short* selectedMates, short* islandPop
 	}
 
 	for(short i = 1; i < ISLAND_POPULATION_SIZE; i++){
-		if(fitnessValues[i] > currentFitnessInterval){
+		if(rouletteBall > currentFitnessInterval){
 			currentFitnessInterval += fitnessValues[i];
 		}else{
 			for(short j = 0; j < CHROMOSOME_SIZE; j++){
