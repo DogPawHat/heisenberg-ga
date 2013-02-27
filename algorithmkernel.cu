@@ -39,7 +39,8 @@ __device__ __forceinline__ void selection(short* selectedMates, short* islandPop
 
 	
 
-	float rouletteBall = randomRouletteBall(fields);
+	float rouletteBall = 0;
+	rouletteBall = randomRouletteBall(fields);
 	float currentFitnessInterval = fitnessValues[0];
 	for(short i = 0; i < CHROMOSOME_SIZE; i++){
 		selectedMates[threadIdx.x*CHROMOSOME_SIZE+i] = islandPopulation[i];
