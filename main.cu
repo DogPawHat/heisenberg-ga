@@ -13,16 +13,15 @@ int main(){
 	deviceFields device;
 	hostFields host;
 
-	host.population = (short*) malloc(TOTAL_POPULATION_MEMORY_SIZE*sizeof(short));
-	host.seeds = (int*) malloc(TOTAL_POPULATION_MEMORY_SIZE*sizeof(int));
+	cudaMalloc((void**) &device.population, TOTAL_POPULATION_MEMORY_SIZE*sizeof(short));
+	cudaMalloc((void**) &device.seeds, POPULATION_SIZE*sizeof(int));
+	cudaMalloc((void**) &device.TSPGraph, 2*CHROMOSOME_SIZE*sizeof(float));
 	cudaMalloc((void**) &device.source, CHROMOSOME_SIZE*sizeof(short));
-	cudaMalloc((void**) &device.population,  TOTAL_POPULATION_MEMORY_SIZE*sizeof(short));
-	cudaMalloc((void**) &device.TSPGraph, CHROMOSOME_SIZE*2*sizeof(float));
-	cudaMalloc((void**) &device.seeds, TOTAL_POPULATION_MEMORY_SIZE*sizeof(int));
-	cudaMemcpy(device.TSPGraph, berlin52, CHROMOSOME_SIZE*2*sizeof(float), cudaMemcpyHostToDevice);
-	thrust::device_ptr<short> sourceThrust = thrust::device_pointer_cast(device.source);
-	thrust::sequence(sourceThrust, sourceThrust + CHROMOSOME_SIZE);
 
+	cudaMemcpy(device.TSPGraph, berlin52, 2*CHROMOSOME_SIZE*sizeof(float), cudaMemcpyHostToDevice);
+	
+	thrust::device_ptr<short> sourceThrust(device.source);
+	thrust::sequence(sourceThrust, sourceThrust+CHROMOSOME_SIZE);
 
 	createRandomSeeds<<<GRID_SIZE, BLOCK_SIZE>>>(device, time(NULL));
 	createRandomPermutation<<<GRID_SIZE, BLOCK_SIZE>>>(device, time(NULL));
@@ -41,8 +40,7 @@ int main(){
 	}
 
 	cudaFree(device.population);
-	cudaFree(device.TSPGraph);
-	cudaFree(device.source);
-	free(host.population);
+	cudaFree(device.population);
+
 	std::cin.get();
 }

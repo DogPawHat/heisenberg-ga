@@ -4,6 +4,7 @@
 #include <thrust/random/uniform_real_distribution.h>
 #include "global_structs.h"
 
+/*
 __device__ __forceinline__ float randomRouletteBall(deviceFields fields){
 	thrust::minstd_rand0 rng(fields.seeds[threadIdx.x + blockDim.x*blockIdx.x]);
 	thrust::uniform_real_distribution<float> dist(0, 1);
@@ -18,8 +19,12 @@ __device__ __forceinline__ void selection(short* selectedMates, short* islandPop
 
 	for(short i = 1; i < CHROMOSOME_SIZE; i++){
 		short j  = i - 1;
-		float xd = fdimf(fields.TSPGraph[2*islandPopulation[start+i]], fields.TSPGraph[2*islandPopulation[start+j]]);
-		float yd = fdimf(fields.TSPGraph[2*islandPopulation[start+i]+1], fields.TSPGraph[2*islandPopulation[start+j]+1]);
+		float xi = fields.TSPGraph[2*islandPopulation[start+i]];
+		float xj = fields.TSPGraph[2*islandPopulation[start+j]];
+		float yi = fields.TSPGraph[2*islandPopulation[start+i]+1];
+		float yj = fields.TSPGraph[2*islandPopulation[start+j]+1];
+		float xd = fmaxf(xi, xj) - fminf(xi, xj);
+		float yd = fmaxf(yi, yj) - fminf(yi, yj);
 		fitnessValues[threadIdx.x] += sqrtf(xd*xd + yd*yd);
 		__syncthreads();
 	}
@@ -57,6 +62,11 @@ __device__ __forceinline__ void selection(short* selectedMates, short* islandPop
 		}
 	}
 }
+*/
+
+
+__device__ __forceinline__ void crossover(short* selectedMates, short* islandPopulation, deviceFields fields);
+__device__ __forceinline__ void selection(short* selectedMates, short* islandPopulation, deviceFields fields);
 
 __device__ __forceinline__ void generation(short * islandPopulation, deviceFields fields){
 	__shared__ short selectedMates[TOTAL_ISLAND_POPULATION_MEMORY_SIZE];
