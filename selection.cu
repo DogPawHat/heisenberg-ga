@@ -1,0 +1,63 @@
+#include <cuda.h>
+#include <math.h>
+#include <thrust/random/linear_congruential_engine.h>
+#include <thrust/random/uniform_real_distribution.h>
+#include "global_structs.h"
+
+__device__ __forceinline__ float randomRouletteBall(deviceFields fields){
+	thrust::minstd_rand0 rng(fields.seeds[threadIdx.x + blockDim.x*blockIdx.x]);
+	thrust::uniform_real_distribution<float> dist(0, 1);
+	float result = dist(rng);
+	return result;
+}
+
+__device__ __forceinline__ void selection(short* selectedMates, short* islandPopulation, deviceFields fields){
+	__shared__ float fitnessValues[ISLAND_POPULATION_SIZE];
+	__shared__ float sumOfFitnessValues[ISLAND_POPULATION_SIZE];
+	short start = threadIdx.x*CHROMOSOME_SIZE;
+
+	for(short i = 1; i < CHROMOSOME_SIZE; i++){
+		short j  = i - 1;
+		float xi = fields.TSPGraph[2*islandPopulation[start+i]];
+		float xj = fields.TSPGraph[2*islandPopulation[start+j]];
+		float yi = fields.TSPGraph[2*islandPopulation[start+i]+1];
+		float yj = fields.TSPGraph[2*islandPopulation[start+j]+1];
+		float xd = fmaxf(xi, xj) - fminf(xi, xj);
+		float yd = fmaxf(yi, yj) - fminf(yi, yj);
+		fitnessValues[threadIdx.x] += sqrtf(xd*xd + yd*yd);
+		__syncthreads();
+	}
+
+	fitnessValues[threadIdx.x] = 1/fitnessValues[threadIdx.x];
+	sumOfFitnessValues[threadIdx.x] = fitnessValues[threadIdx.x];
+	__syncthreads();
+
+	for(short stride = 1; stride < ISLAND_POPULATION_SIZE; stride *= 2){
+		if(threadIdx.x + stride < ISLAND_POPULATION_SIZE){
+			sumOfFitnessValues[threadIdx.x] += sumOfFitnessValues[threadIdx.x+stride];
+		}
+	}
+
+	fitnessValues[threadIdx.x] = fitnessValues[threadIdx.x]/sumOfFitnessValues[0];
+
+
+	
+
+	float rouletteBall = 0;
+	rouletteBall = randomRouletteBall(fields);
+	float currentFitnessInterval = fitnessValues[0];
+	for(short i = 0; i < CHROMOSOME_SIZE; i++){
+		selectedMates[threadIdx.x*CHROMOSOME_SIZE+i] = islandPopulation[i];
+	}
+
+	for(short i = 1; i < ISLAND_POPULATION_SIZE; i++){
+		if(rouletteBall > currentFitnessInterval){
+			currentFitnessInterval += fitnessValues[i];
+		}else{
+			for(short j = 0; j < CHROMOSOME_SIZE; j++){
+				selectedMates[threadIdx.x*CHROMOSOME_SIZE+j] = islandPopulation[i*CHROMOSOME_SIZE+j];
+			}
+			break;
+		}
+	}
+}
