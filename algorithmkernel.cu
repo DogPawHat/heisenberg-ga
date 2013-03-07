@@ -2,6 +2,7 @@
 #include <math.h>
 #include <thrust/random/linear_congruential_engine.h>
 #include <thrust/random/uniform_real_distribution.h>
+#include <thrust/random/uniform_int_distribution.h>
 #include "global_structs.h"
 
 
@@ -119,17 +120,17 @@ __device__ __forceinline__ void crossover(short* selectedMates, short* islandPop
 	thrust::uniform_int_distribution<short> dist2;
 
 	if(threadIdx.x < (BLOCK_SIZE/2)){
-		parent1 = selectedMates[threadIdx.x*CHROMOSOME_SIZE];
-		parent2 = selectedMates[(threadIdx.x+(BLOCK_SIZE/2))*CHROMOSOME_SIZE];
+		parent1 = &selectedMates[threadIdx.x*CHROMOSOME_SIZE];
+		parent2 = &selectedMates[(threadIdx.x+(BLOCK_SIZE/2))*CHROMOSOME_SIZE];
 	}else{
-		parent1 = selectedMates[threadIdx.x*CHROMOSOME_SIZE];
-		parent2 = selectedMates[(threadIdx.x-(BLOCK_SIZE/2))*CHROMOSOME_SIZE];
+		parent1 = &selectedMates[threadIdx.x*CHROMOSOME_SIZE];
+		parent2 = &selectedMates[(threadIdx.x-(BLOCK_SIZE/2))*CHROMOSOME_SIZE];
 	}
 
 	dist1 = thrust::uniform_int_distribution<short>(0, 52);
-	short point1 = dist1(rng);
-	dist2 = thrust::uniform_int_distribution<short>(point1, 52)
-	short point2 = dist2(rng);
+	point1 = dist1(rng);
+	dist2 = thrust::uniform_int_distribution<short>(point1, 52);
+	point2 = dist2(rng);
 
 	for(short i = point1; i <= point2; i++){
 		offspring[i] = parent2[i];
@@ -138,14 +139,15 @@ __device__ __forceinline__ void crossover(short* selectedMates, short* islandPop
 	for(int i = 0; i < point1; i++){
 		for(int j = 0; j < (point2 - point1); j++){
 			if(parent1[i] == offspring[j]){
-				offspring[i] == parent2[i];
+				offspring[i] = parent2[i];
 				goto a;
 			}
 		}
-		offspring[i] == parent1[i];
+		offspring[i] = parent1[i];
+		a:
 	}
 
 	for(int i = 0; i < CHROMOSOME_SIZE; i++){
-		islandPopulation[threadIdx*CHROMOSOME_SIZE+i] = offspring[i];
+		islandPopulation[threadIdx.x*CHROMOSOME_SIZE+i] = offspring[i];
 	}
 }
