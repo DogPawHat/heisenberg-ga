@@ -6,12 +6,13 @@
 #include "global_structs.h"
 
 
-__device__  void crossover(short*, short*, deviceFields);
-__device__  void selection(short*, short*, deviceFields);
+__device__  void crossover(short[], short[], deviceFields);
+__device__  void selection(short[], short[], deviceFields);
 
-__device__ __forceinline__ void generation(short * islandPopulation, deviceFields fields){
+__device__ __forceinline__ void generation(short islandPopulation[], deviceFields fields){
 	__shared__ short selectedMates[TOTAL_ISLAND_POPULATION_MEMORY_SIZE];
 	selection(selectedMates, islandPopulation, fields);
+	crossover(selectedMates, islandPopulation, fields);
 	__syncthreads();
 
 	for(short i = 0; i < CHROMOSOME_SIZE; i++){
@@ -29,8 +30,10 @@ __global__ void runGeneticAlgorithm(deviceFields fields){
 	}
 	__syncthreads();
 
-	generation(islandPopulation, fields);
-	__syncthreads();
+	for(int i = 0; i < 1000; i++){
+		generation(islandPopulation, fields);
+		__syncthreads();
+	}
 
 	for(short i = 0; i < CHROMOSOME_SIZE; i++){
 		fields.population[gridIndex*CHROMOSOME_SIZE+i] = islandPopulation[threadIdx.x*CHROMOSOME_SIZE+i];
@@ -49,7 +52,7 @@ __device__  float randomRouletteBall(deviceFields fields){
 	return result;
 }
 
-__device__  void selection(short* selectedMates, short* islandPopulation, deviceFields fields){
+__device__  void selection(short selectedMates[], short islandPopulation[], deviceFields fields){
 	__shared__ float fitnessValues[ISLAND_POPULATION_SIZE];
 	__shared__ float sumOfFitnessValues[ISLAND_POPULATION_SIZE];
 	short start = threadIdx.x*CHROMOSOME_SIZE;

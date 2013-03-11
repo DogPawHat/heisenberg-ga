@@ -5,7 +5,7 @@
 #include "global_structs.h"
 #include "berlin52.h"
 
-__global__ void createRandomPermutation(deviceFields fields, long seed);
+__global__ void createRandomPermutation(deviceFields fields);
 __global__ void runGeneticAlgorithm(deviceFields fields);
 __global__ void createRandomSeeds(deviceFields fields, long seed);
 
@@ -24,7 +24,7 @@ int main(){
 	thrust::sequence(sourceThrust, sourceThrust+CHROMOSOME_SIZE);
 
 	createRandomSeeds<<<GRID_SIZE, BLOCK_SIZE>>>(device, time(NULL));
-	createRandomPermutation<<<GRID_SIZE, BLOCK_SIZE>>>(device, time(NULL));
+	createRandomPermutation<<<GRID_SIZE, BLOCK_SIZE>>>(device);
 	cudaDeviceSynchronize();
 
 	runGeneticAlgorithm<<<GRID_SIZE, BLOCK_SIZE>>>(device);

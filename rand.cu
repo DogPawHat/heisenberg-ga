@@ -8,13 +8,13 @@ using thrust::random::minstd_rand0;
 using thrust::random::uniform_int_distribution;
 
 //Create an random int array repesenting a solution to a TSP. For inisziation.
-__global__ void createRandomPermutation(deviceFields fields, long seed){
+__global__ void createRandomPermutation(deviceFields fields){
 	short tempResult[CHROMOSOME_SIZE];
 	short temp;
 	short rand;
 	short start = (threadIdx.x + blockIdx.x*blockDim.x)*CHROMOSOME_SIZE;
 
-	minstd_rand0 rng(seed*(threadIdx.x + blockIdx.x*blockDim.x)-341256);
+	minstd_rand0 rng(fields.seeds[threadIdx.x]);
 
 	for(short i = 0; i < CHROMOSOME_SIZE; i++){
 		tempResult[i] = fields.source[i];
@@ -27,6 +27,7 @@ __global__ void createRandomPermutation(deviceFields fields, long seed){
 		tempResult[rand] = tempResult[i];
 		tempResult[i] = temp;
 	}
+	__syncthreads();
 
 	for(short i = 0; i < CHROMOSOME_SIZE; i++){
 		fields.population[start+i] = tempResult[i];
