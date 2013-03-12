@@ -12,11 +12,24 @@
 #define TOTAL_MATING_POOL_MEMORY_SIZE (MATING_POOL_SIZE*CHROMOSOME_SIZE)
 
 typedef struct{
+	short chromosome[CHROMOSOME_SIZE];
+	float fitness;
+} metaChromosome;
+
+typedef struct{
+	metaChromosome * population; //shorts are only 2 bytes long
+	short * source;
+	float * TSPGraph;
+	int * seeds;
+} deviceFields;
+
+/*typedef struct{
 	short * population; //shorts are only 2 bytes long
 	short * source;
 	float * TSPGraph;
 	int * seeds;
 } deviceFields;
+*/
 
 typedef struct{
 	short population[TOTAL_POPULATION_MEMORY_SIZE];

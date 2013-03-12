@@ -13,7 +13,7 @@ int main(){
 	deviceFields device;
 	hostFields host;
 
-	cudaMalloc((void**) &device.population, TOTAL_POPULATION_MEMORY_SIZE*sizeof(short));
+	cudaMalloc((void**) &device.population, POPULATION_SIZE*sizeof(metaChromosome));
 	cudaMalloc((void**) &device.seeds, POPULATION_SIZE*sizeof(int));
 	cudaMalloc((void**) &device.TSPGraph, 2*CHROMOSOME_SIZE*sizeof(float));
 	cudaMalloc((void**) &device.source, CHROMOSOME_SIZE*sizeof(short));
@@ -30,11 +30,12 @@ int main(){
 	runGeneticAlgorithm<<<GRID_SIZE, BLOCK_SIZE>>>(device);
 	cudaDeviceSynchronize();
 
-	cudaMemcpy(host.population, device.population, TOTAL_POPULATION_MEMORY_SIZE*sizeof(short),cudaMemcpyDeviceToHost);
+	cudaMemcpy(host.population, device.population, POPULATION_SIZE*sizeof(metaChromosome),cudaMemcpyDeviceToHost);
 
 	for (short i = 0; i < POPULATION_SIZE; i++){
+		short * chromosome = host.population;
 		for(short j = 0; j < CHROMOSOME_SIZE; j++){
-			std::cout << host.population[j+i*CHROMOSOME_SIZE] << " ";
+			std::cout << chromosome[j] << " ";
 		}
 		std::cout << std::endl;
 	}
