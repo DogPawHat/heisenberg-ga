@@ -12,7 +12,7 @@ __global__ void createRandomPermutation(deviceFields fields){
 	short tempResult[CHROMOSOME_SIZE];
 	short temp;
 	short rand;
-	short * chromosome = fields.population[threadIdx.x].chromosome;
+	short * chromosome = fields.population[threadIdx.x+blockIdx.x*blockDim.x].chromosome;
 //	short start = (threadIdx.x + blockIdx.x*blockDim.x)*CHROMOSOME_SIZE;
 
 	minstd_rand0 rng(fields.seeds[threadIdx.x]);

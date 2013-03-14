@@ -33,9 +33,8 @@ int main(){
 	cudaMemcpy(host.population, device.population, POPULATION_SIZE*sizeof(metaChromosome),cudaMemcpyDeviceToHost);
 
 	for (short i = 0; i < POPULATION_SIZE; i++){
-		short * chromosome = host.population;
 		for(short j = 0; j < CHROMOSOME_SIZE; j++){
-			std::cout << chromosome[j] << " ";
+			std::cout << host.population[i].chromosome[j] << " ";
 		}
 		std::cout << std::endl;
 	}

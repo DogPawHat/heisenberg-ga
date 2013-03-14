@@ -1,8 +1,8 @@
 #ifndef GLOBAL_STRUCTS
 #define GLOBAL_STRUCTS
 
-#define BLOCK_SIZE 64
-#define GRID_SIZE 2
+#define BLOCK_SIZE 192
+#define GRID_SIZE 10
 #define CHROMOSOME_SIZE 52
 #define POPULATION_SIZE (BLOCK_SIZE*GRID_SIZE)
 #define ISLAND_POPULATION_SIZE BLOCK_SIZE
@@ -13,6 +13,7 @@
 
 typedef struct{
 	short chromosome[CHROMOSOME_SIZE];
+	float distance;
 	float fitness;
 } metaChromosome;
 
@@ -32,7 +33,7 @@ typedef struct{
 */
 
 typedef struct{
-	short population[TOTAL_POPULATION_MEMORY_SIZE];
+	metaChromosome population[POPULATION_SIZE];
 } hostFields;
 
 #endif
