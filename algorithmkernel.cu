@@ -16,10 +16,13 @@ __device__ __forceinline__ void bitonicSort(metaChromosome islandPopulation[]);
 
 
 __device__ __forceinline__ void generation(metaChromosome islandPopulation[], deviceFields fields){
+	int gridIndex = threadIdx.x + blockDim.x*blockIdx.x;
+	islandPopulation[threadIdx.x] = fields.population[gridIndex];
+	__syncthreads();
 	
 	if(blockIdx.x <= 8){
 		crossover(islandPopulation, fields);
-	}else if(blockIdx.x == 9){
+	}else if (blockIdx.x == 9){
 		mutation(islandPopulation, fields);
 	}
 	__syncthreads();
@@ -27,35 +30,29 @@ __device__ __forceinline__ void generation(metaChromosome islandPopulation[], de
 	selection(islandPopulation, fields);
 	__syncthreads();
 
-	bitonicSort(islandPopulation);
+//	bitonicSort(islandPopulation);
+//	__syncthreads();
 
-
-	if(blockIdx.x <= (BLOCK_SIZE - 2) && threadIdx.x >= BLOCK_SIZE/2){
-		fields.population[threadIdx.x*2 + blockDim.x*blockIdx.x +ISLAND_POPULATION_SIZE] = islandPopulation[threadIdx.x];
-	}else if(blockIdx.x == (BLOCK_SIZE - 1) && threadIdx.x >= BLOCK_SIZE/2){
-		fields.population[threadIdx.x*2] = islandPopulation[threadIdx.x];
+	if(blockIdx.x <= (GRID_SIZE - 2) && threadIdx.x >= BLOCK_SIZE/2){
+		fields.population[gridIndex + ISLAND_POPULATION_SIZE] = islandPopulation[threadIdx.x];
+	}else if(blockIdx.x == (GRID_SIZE - 1) && threadIdx.x >= BLOCK_SIZE/2){
+		fields.population[threadIdx.x] = islandPopulation[threadIdx.x];
 	}else if(threadIdx.x <= BLOCK_SIZE/2){
-		fields.population[threadIdx.x*2 + blockDim.x*blockIdx.x - 1] = islandPopulation[threadIdx.x];
+		fields.population[gridIndex] = islandPopulation[threadIdx.x];
 	}
-	__syncthreads();
 
+//	fields.population[gridIndex] = islandPopulation[threadIdx.x];
+	__syncthreads();
 }
 
 
-__global__ void runGeneticAlgorithm(deviceFields fields){
-	int gridIndex = threadIdx.x + blockDim.x*blockIdx.x;
+__global__ __forceinline__ void runGeneticAlgorithm(deviceFields fields){
 	__shared__ metaChromosome islandPopulation[ISLAND_POPULATION_SIZE];
 
-	islandPopulation[threadIdx.x] = fields.population[gridIndex];
-	__syncthreads();
-
-	for(int i = 0; i < 20; i++){
+	for(long i = 0; i < 10; i++){
 		generation(islandPopulation, fields);
 		__syncthreads();
 	}
-
-	fields.population[gridIndex] = islandPopulation[threadIdx.x];
-	__syncthreads();
 }
 
 
@@ -124,19 +121,28 @@ __device__ __forceinline__ void fitnessEvauation(metaChromosome islandPopulation
 
 __device__ __forceinline__ void bitonicStep(int stride, metaChromosome islandPopulation[]){
 	metaChromosome temp;
-	if((threadIdx.x % stride) >= 0 && threadIdx.x % stride < stride/2){
-		if(islandPopulation[threadIdx.x].fitness > islandPopulation[threadIdx.x + (stride/2)].fitness){
-			temp = islandPopulation[threadIdx.x];
-			islandPopulation[threadIdx.x] = islandPopulation[threadIdx.x + (stride/2)];
-			islandPopulation[threadIdx.x + (stride/2)] = temp;
+	if((threadIdx.x % stride) >= 0 && (threadIdx.x % stride) < stride/2){
+		if((threadIdx.x/stride)%2 == 0){
+			if(islandPopulation[threadIdx.x].fitness > islandPopulation[threadIdx.x + (stride/2)].fitness){
+				temp = islandPopulation[threadIdx.x];
+				islandPopulation[threadIdx.x] = islandPopulation[threadIdx.x + (stride/2)];
+				islandPopulation[threadIdx.x + (stride/2)] = temp;
+			}
+		}else{
+			if(islandPopulation[threadIdx.x].fitness < islandPopulation[threadIdx.x + (stride/2)].fitness){
+				temp = islandPopulation[threadIdx.x + (stride/2)];
+				islandPopulation[threadIdx.x + (stride/2)] = islandPopulation[threadIdx.x];
+				islandPopulation[threadIdx.x] = temp;
+			}
 		}
 	}
 }
 
 __device__ __forceinline__ void bitonicSort(metaChromosome islandPopulation[]){
-	for(int i = 2; i < ISLAND_POPULATION_SIZE; i*2){
-		for(int j = i; j <= 1; j/2){
+	for(int i = 2; i <= ISLAND_POPULATION_SIZE; i*2){
+		for(int j = i; j < 1; j/2){
 			bitonicStep(j, islandPopulation);
+			__syncthreads();
 		}
 	}
 }

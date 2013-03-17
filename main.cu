@@ -27,15 +27,16 @@ int main(){
 	createRandomPermutation<<<GRID_SIZE, BLOCK_SIZE>>>(device);
 	cudaDeviceSynchronize();
 
-	runGeneticAlgorithm<<<GRID_SIZE, BLOCK_SIZE>>>(device);
-	cudaDeviceSynchronize();
+//	runGeneticAlgorithm<<<GRID_SIZE, BLOCK_SIZE>>>(device);
+//	cudaDeviceSynchronize();
 
 	cudaMemcpy(host.population, device.population, POPULATION_SIZE*sizeof(metaChromosome),cudaMemcpyDeviceToHost);
 
 	for (short i = 0; i < POPULATION_SIZE; i++){
-		for(short j = 0; j < CHROMOSOME_SIZE; j++){
-			std::cout << host.population[i].chromosome[j] << " ";
-		}
+//		for(short j = 0; j < CHROMOSOME_SIZE; j++){
+//			std::cout << host.population[i].chromosome[j] << " ";
+//		}
+		std::cout << host.population[i].fitness;
 		std::cout << std::endl;
 	}
 
