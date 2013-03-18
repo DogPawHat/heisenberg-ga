@@ -22,11 +22,11 @@ __device__ void generation(metaChromosome islandPopulation[], deviceFields field
 //	mutation(islandPopulation, fields);
 //	__syncthreads();
 
-//	crossover(islandPopulation, fields);
-//	__syncthreads();
+	crossover(islandPopulation, fields);
+	__syncthreads();
 
-//	selection(islandPopulation, fields);
-//	__syncthreads();
+	selection(islandPopulation, fields);
+	__syncthreads();
 
 /*	if(blockIdx.x <= (GRID_SIZE - 2) && threadIdx.x >= BLOCK_SIZE/2){
 		fields.population[gridIndex + ISLAND_POPULATION_SIZE] = islandPopulation[threadIdx.x];
@@ -48,8 +48,6 @@ __global__ void runGeneticAlgorithm(deviceFields fields){
 		generation(islandPopulation, fields);
 		__syncthreads();
 	}
-
-	free(islandPopulation);
 }
 
 
@@ -137,14 +135,27 @@ __device__ void bitonicSort(metaChromosome islandPopulation[]){
 
 /*Genetic Operators*/
 
+__device__ short pmxSwap(short value, metaChromosome parent1, short point1, metaChromosome parent2, short point2){
+	for(int i = 0; i < CHROMOSOME_SIZE; i++){
+		if(value == parent2.chromosome[i]){
+			if(i < point1 || i > point2){
+				return i;
+			}else{
+				return pmxSwap(parent1.chromosome[i], parent1, point1, parent2, point2);
+				}
+			}
+		}
+	return 0;
+}
+
 __device__ void crossover(metaChromosome islandPopulation[], deviceFields fields){
 	/*We need two different paths here beause each thread needs two parents to generate a single offspring.
 	The first half of the block will take one parent from the first half of islandPopulation, while the second parent
 	will come from the second half. This is reversed for the second half of the block. To reduce warp control divergence,
 	block size shoud be a multiple of 2*warp size, 32 being the current value of warps in Fermi and Kepler GPU's*/
 	
-	short* parent1; //Points to the first element in the chromosome of parent1
-	short* parent2;
+	metaChromosome parent1; //Points to the first element in the chromosome of parent1
+	metaChromosome parent2;
 	short point1;
 	short point2;
 	metaChromosome offspring = islandPopulation[threadIdx.x];
@@ -153,11 +164,11 @@ __device__ void crossover(metaChromosome islandPopulation[], deviceFields fields
 	thrust::uniform_int_distribution<short> dist2;
 
 	if(threadIdx.x < (BLOCK_SIZE/2)){
-		parent1 = islandPopulation[threadIdx.x].chromosome;
-		parent2 = islandPopulation[threadIdx.x+(BLOCK_SIZE/2)].chromosome;
+		parent1 = islandPopulation[threadIdx.x];
+		parent2 = islandPopulation[threadIdx.x+(BLOCK_SIZE/2)];
 	}else{
-		parent1 = islandPopulation[threadIdx.x].chromosome;
-		parent2 = islandPopulation[threadIdx.x-(BLOCK_SIZE/2)].chromosome;
+		parent1 = islandPopulation[threadIdx.x];
+		parent2 = islandPopulation[threadIdx.x-(BLOCK_SIZE/2)];
 	}
 
 	dist1 = thrust::uniform_int_distribution<short>(0, CHROMOSOME_SIZE-1);
@@ -165,27 +176,15 @@ __device__ void crossover(metaChromosome islandPopulation[], deviceFields fields
 	dist2 = thrust::uniform_int_distribution<short>(point1, CHROMOSOME_SIZE-1);
 	point2 = dist2(rng);
 
+	offspring = parent2;
 
-	for(int i = point1; i <= point2; i++){
-			offspring.chromosome[i] = parent2[i];
+	for(short i = point1; i <= point2; i++){
+		offspring.chromosome[i] = parent1.chromosome[i];
 	}
 
-	for(int i = 0; i < point1; i++){
-		offspring.chromosome[i] = parent1[i];
-		for(int j = point1; j <= point2; j++){
-			if(offspring.chromosome[i] == offspring.chromosome[j]){
-				offspring.chromosome[i] = parent1[j];
-			}
-		}
-	}
-
-
-	for(int i = point2 + 1; i < CHROMOSOME_SIZE; i++){
-		offspring.chromosome[i] = parent1[i];
-		for(int j = point1; j <= point2; j++){
-			if(offspring.chromosome[i] == offspring.chromosome[j]){
-				offspring.chromosome[i] = parent1[j];
-			}
+	for(short i = point1; i <= point2; i++){
+		if(offspring.chromosome[i] != parent2.chromosome[i]){
+			offspring.chromosome[pmxSwap(parent1.chromosome[i], parent1, point1, parent2, point2)] = parent2.chromosome[i];
 		}
 	}
 
@@ -197,7 +196,7 @@ __device__ void mutation(metaChromosome islandPopulation[], deviceFields fields)
 	metaChromosome mutant = islandPopulation[threadIdx.x]; 
 	thrust::minstd_rand0 rng(fields.seeds[threadIdx.x+blockDim.x*blockIdx.x]);
 	thrust::uniform_int_distribution<short> dist1(0, 10);
-	thrust::uniform_int_distribution<short> dist2(0, 52);
+	thrust::uniform_int_distribution<short> dist2(0, 51);
 	short numOfSwaps = dist1(rng);
 	short swapPoint1;
 	short swapPoint2;

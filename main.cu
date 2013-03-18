@@ -9,9 +9,9 @@ __global__ void createRandomPermutation(deviceFields fields);
 __global__ void runGeneticAlgorithm(deviceFields fields);
 __global__ void createRandomSeeds(deviceFields fields, long seed);
 
-cudaError check(cudaError call){
+void check(cudaError call){
 	if(call != cudaSuccess){
-		throw call;
+		throw &call;
 	}
 }
 
@@ -73,7 +73,7 @@ int main(){
 
 
 		check(cudaFree(device.population));
-	}catch(cudaError e){
-		std::cout << "Oh crap: " << e << std::endl;
+	}catch(cudaError * e){
+		std::cout << "Oh crap: " << *e << std::endl;
 	}
 }
