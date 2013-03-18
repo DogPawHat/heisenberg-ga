@@ -15,6 +15,24 @@ cudaError check(cudaError call){
 	}
 }
 
+int chromosomeCheck(short chromosome[]){
+	int k;
+	for(int i = 0; i < CHROMOSOME_SIZE; i++){
+		k = 0;
+		for(int j = 0; j < CHROMOSOME_SIZE; j++){
+			if(chromosome[j] == i){
+				k++;
+			}else if(chromosome[j] > CHROMOSOME_SIZE || chromosome[j] < 0){
+				return 1;
+			}
+		}
+		if(k != 1){
+			return 1;
+		}
+	}
+	return 0;
+}
+
 int main(){
 	try{
 		deviceFields device;
@@ -27,10 +45,12 @@ int main(){
 
 		cudaMemcpy(device.TSPGraph, berlin52, 2*CHROMOSOME_SIZE*sizeof(float), cudaMemcpyHostToDevice);
 
+		for(int i = 0; i < CHROMOSOME_SIZE; i++){
+			host.source[i] = i;
+		}
+
+		cudaMemcpy(device.source, host.source, CHROMOSOME_SIZE*sizeof(short), cudaMemcpyHostToDevice);
 		check(cudaThreadSynchronize());
-	
-		thrust::device_ptr<short> sourceThrust(device.source);
-		thrust::sequence(sourceThrust, sourceThrust+CHROMOSOME_SIZE);
 
 		createRandomSeeds<<<GRID_SIZE, BLOCK_SIZE>>>(device, time(NULL));
 		createRandomPermutation<<<GRID_SIZE, BLOCK_SIZE>>>(device);
@@ -42,18 +62,18 @@ int main(){
 		cudaMemcpy(host.population, device.population, POPULATION_SIZE*sizeof(metaChromosome),cudaMemcpyDeviceToHost);
 
 		for (short i = 0; i < POPULATION_SIZE; i++){
+			std::cout << '[' << chromosomeCheck(host.population[i].chromosome) << ']' << " ";
 			for(short j = 0; j < CHROMOSOME_SIZE; j++){
 				std::cout << host.population[i].chromosome[j] << " ";
 			}
-			std::cout << host.population[i].distance << " " << host.population[i].fitness << std::endl;
+			std::cout << /*host.population[i].distance <<*/ std::endl;
 		}
 
-		cudaFree(device.population);
-		check(cudaThreadSynchronize());
 
-		std::cin.get();
+
+
+		check(cudaFree(device.population));
 	}catch(cudaError e){
 		std::cout << "Oh crap: " << e << std::endl;
-		std::cin.get();
 	}
 }
