@@ -74,6 +74,6 @@ int main(){
 
 		check(cudaFree(device.population));
 	}catch(cudaError * e){
-		std::cout << "Oh crap: " << *e << std::endl;
+		std::cout << "Oh crap: " << cudaGetErrorString(*e) << std::endl;
 	}
 }

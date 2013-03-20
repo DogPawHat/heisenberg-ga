@@ -12,19 +12,25 @@ typedef struct{
 	short chromosome[CHROMOSOME_SIZE];
 	float distance;
 	__host__ __device__ float distanceCalculation(float TSPGraph[]){
-		distance = 0;
+		distance = distanceBetweenTwoCities(chromosome[CHROMOSOME_SIZE-1], chromosome[0], TSPGraph);
 		for(short i = 1; i < CHROMOSOME_SIZE; i++){
 			short j  = i - 1;
-			float xi = TSPGraph[2*chromosome[i]];
-			float xj = TSPGraph[2*chromosome[j]];
-			float yi = TSPGraph[2*chromosome[i]+1];
-			float yj = TSPGraph[2*chromosome[j]+1];
-			float xd = fmaxf(xi, xj) - fminf(xi, xj);
-			float yd = fmaxf(yi, yj) - fminf(yi, yj);
-			distance += sqrtf(xd*xd + yd*yd);
+			distance += distanceBetweenTwoCities(chromosome[i], chromosome[j], TSPGraph);
 		}
 		return distance;
 	}
+
+	__host__ __device__ float distanceBetweenTwoCities(short i, short j, float TSPGraph[]){
+		float xi = TSPGraph[2*i];
+		float xj = TSPGraph[2*j];
+		float yi = TSPGraph[2*i+1];
+		float yj = TSPGraph[2*j+1];
+		float xd = fmaxf(xi, xj) - fminf(xi, xj);
+		float yd = fmaxf(yi, yj) - fminf(yi, yj);
+		return(sqrtf(xd*xd + yd*yd));
+	}
+
+
 	float fitness;
 } metaChromosome;
 
