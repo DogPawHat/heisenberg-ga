@@ -66,7 +66,7 @@ int main(){
 			for(short j = 0; j < CHROMOSOME_SIZE; j++){
 				std::cout << host.population[i].chromosome[j] << " ";
 			}
-			std::cout << /*host.population[i].distance <<*/ std::endl;
+			std::cout << host.population[i].distance << " " << host.population[i].fitness << std::endl;
 		}
 
 
