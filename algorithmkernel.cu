@@ -21,11 +21,11 @@ __device__ void generation(metaChromosome islandPopulation[], deviceFields field
 //	mutation(islandPopulation, fields);
 //	__syncthreads();
 
-//	crossover(islandPopulation, fields);
-//	__syncthreads();
+	crossover(islandPopulation, fields);
+	__syncthreads();
 
-//	selection(islandPopulation, fields);
-//	__syncthreads();
+	selection(islandPopulation, fields);
+	__syncthreads();
 
 /*	if(blockIdx.x <= (GRID_SIZE - 2) && threadIdx.x >= BLOCK_SIZE/2){
 		fields.population[gridIndex + ISLAND_POPULATION_SIZE] = islandPopulation[threadIdx.x];
@@ -147,7 +147,7 @@ __device__ short pmxSwap(short value, metaChromosome parent1, short point1, meta
 	return 0;
 }
 
-__device__ void crossover(metaChromosome islandPopulation[], deviceFields fields){
+__device__ void crossoverPMX(metaChromosome islandPopulation[], deviceFields fields){
 	/*We need two different paths here beause each thread needs two parents to generate a single offspring.
 	The first half of the block will take one parent from the first half of islandPopulation, while the second parent
 	will come from the second half. This is reversed for the second half of the block. To reduce warp control divergence,
@@ -220,123 +220,143 @@ __device__ void createNewSeed(deviceFields fields, long seed){
 }
 
 __device__ void crossoverERO(metaChromosome islandPopulation[], deviceFields fields){
-	short unionAjacency[CHROMOSOME_SIZE][4];
+	thrust::minstd_rand rng(fields.seeds[threadIdx.x]);
+	thrust::uniform_int_distribution<short> dist(0, (CHROMOSOME_SIZE-1));
+	unsigned short unionAjacency[CHROMOSOME_SIZE][4];
 	metaChromosome *parent1;
 	metaChromosome *parent2;
+	metaChromosome child;
+	unsigned short currentAvailable[CHROMOSOME_SIZE];
+	unsigned short currentNode= dist(rng);
+
+	for(unsigned short i = 0; i < CHROMOSOME_SIZE; i++){
+		currentAvailable[i] = i;
+	}
+
+	currentAvailable[currentNode]= CHROMOSOME_SIZE + 1;
 
 	if(threadIdx.x < (BLOCK_SIZE/2)){
 		parent1 = &islandPopulation[threadIdx.x];
 		parent2 = &islandPopulation[threadIdx.x+(BLOCK_SIZE/2)];
-	}else{
+	}
+	else{
 		parent1 = &islandPopulation[threadIdx.x];
 		parent2 = &islandPopulation[threadIdx.x-(BLOCK_SIZE/2)];
 	}
-	
-	metaChromosome child;
 
 	for(int i = 0; i < CHROMOSOME_SIZE; i++){
 		for(int j = 0; j < CHROMOSOME_SIZE; j++){
-			if(parent1->chromosome[i] == parent2->chromosome[j]){
-				short xa, xb, ya, yb;
+			for(int k = 0; k < CHROMOSOME_SIZE; k++){
+				if(parent1->chromosome[j] == i && parent2->chromosome[k] == i){
+					unsigned short xa, xb, ya, yb;
 
-				switch(i){
-				case 0:
-					xa = parent1->chromosome[CHROMOSOME_SIZE - 1];
-					xb = parent1->chromosome[i+1];
-					break;
-				case CHROMOSOME_SIZE-1:
-					xa = parent1->chromosome[i - 1];
-					xb = parent1->chromosome[0];
-					break;
-				default:
-					xa = parent1->chromosome[i - 1];
-					xb = parent1->chromosome[i+1];
-					break;
-				}
+					switch(j){
+					case 0:
+						xa = parent1->chromosome[CHROMOSOME_SIZE - 1];
+						xb = parent1->chromosome[j+1];
+						break;
+					case CHROMOSOME_SIZE-1:
+						xa = parent1->chromosome[j - 1];
+						xb = parent1->chromosome[0];
+						break;
+					default:
+						xa = parent1->chromosome[j - 1];
+						xb = parent1->chromosome[j+1];
+						break;
+					}
 
-				switch(i){
-				case 0:
-					ya = parent2->chromosome[CHROMOSOME_SIZE - 1];
-					yb = parent2->chromosome[j+1];
-					break;
-				case CHROMOSOME_SIZE-1:
-					ya = parent2->chromosome[j-1];
-					yb = parent2->chromosome[0];
-					break;
-				default:
-					ya = parent2->chromosome[j-1];
-					yb = parent2->chromosome[j+1];
-					break;
-				}
+					switch(k){
+					case 0:
+						ya = parent2->chromosome[CHROMOSOME_SIZE - 1];
+						yb = parent2->chromosome[k+1];
+						break;
+					case CHROMOSOME_SIZE-1:
+						ya = parent2->chromosome[k-1];
+						yb = parent2->chromosome[0];
+						break;
+					default:
+						ya = parent2->chromosome[k-1];
+						yb = parent2->chromosome[k+1];
+						break;
+					}
+					if(xa <= CHROMOSOME_SIZE && xb <= CHROMOSOME_SIZE && ya <= CHROMOSOME_SIZE && ya <= CHROMOSOME_SIZE){
+						unionAjacency[i][0] = xa;
+						unionAjacency[i][1] = xb;
+						if(xa != ya || xb != ya){
+							unionAjacency[i][2] = ya;
+						}else{
+							unionAjacency[i][2] = CHROMOSOME_SIZE+1;
+						}
 
-				unionAjacency[i][0] = xa;
-				unionAjacency[i][1] = xb;
-				if(xa == ya || xb == ya){
-					unionAjacency[i][2] = ya;
-				}else{
-					unionAjacency[i][2] = CHROMOSOME_SIZE+1;
+						if(xa != yb || xb != yb){
+							unionAjacency[i][3] = yb;
+						}
+						else
+						{
+							unionAjacency[i][3] = CHROMOSOME_SIZE+1;
+						}
+						break;
+					}
 				}
-
-				if(xa == yb || xb == yb){
-					unionAjacency[i][3] = yb;
-				}
-				else
-				{
-					unionAjacency[i][3] = CHROMOSOME_SIZE+1;
-				}
-				break;
 			}
 		}
 	}
 
-	short currentNode = parent1->chromosome[0];
-	short nextNode;
-	short * currentNodeList = unionAjacency[0];
-
 	for(int i = 0; i < CHROMOSOME_SIZE; i++){
-		child.chromosome[i] = currentNode;
+		if(currentNode < CHROMOSOME_SIZE && currentNode >= 0){
+			child.chromosome[i] = currentNode;
+			currentAvailable[currentNode]= CHROMOSOME_SIZE + 1;
 
-		for(int j = 0; j < CHROMOSOME_SIZE; j++){
-			for(int k = 0; k < 4; k++){
-				if(currentNode==unionAjacency[i][k]){
-					unionAjacency[j][k] = CHROMOSOME_SIZE+1;
+			for(int j = 0; j < CHROMOSOME_SIZE; j++){
+				for(int k = 0; k < 4; k++){
+					if(currentNode==unionAjacency[j][k]){
+						unionAjacency[j][k] = CHROMOSOME_SIZE+1;
+						break;
+					}
+				}
+			}
+
+			bool nonEmpty = false;
+			for(int j = 0; j < 4; j++){
+				if(unionAjacency[currentNode][j] != CHROMOSOME_SIZE+1){
+					nonEmpty = true;
 					break;
 				}
 			}
-		}
-
-		bool nonEmpty = false;
-		for(int j = 0; j < 4; j++){
-			if(currentNodeList[j] != CHROMOSOME_SIZE+1){
-				nonEmpty = true;
-				break;
-			}
-		}
 
 
-		if(nonEmpty == true){
-			short currentlistSize = 4;
-			short listSize= 0;
-			for(int j = 0; j < 4; j++){
-				if(currentNodeList[j] != CHROMOSOME_SIZE+1){
-					for(int k = 0; k < CHROMOSOME_SIZE; k++)
-						if(currentNodeList[j] == parent1.chromosome[k]){
-							listSize = 0;
-							for(int h = 0; h < 4; h++){
-								if(unionAjacency[k][h] != CHROMOSOME_SIZE+1){
-									listSize++;
-								}
-							}
-
-							if(listSize <= currentListSize){
-								nextNode = currentNodeList[j];
-								currentListSize = listSize;
+			if(nonEmpty == true){
+				short currentListSize = 4;
+				short listSize= 0;
+				for(int j = 0; j < 4; j++){
+					if(unionAjacency[currentNode][j] != CHROMOSOME_SIZE+1){
+						listSize = 0;
+						for(int k = 0; k < 4; k++){
+							if(unionAjacency[unionAjacency[currentNode][j]][k] != CHROMOSOME_SIZE+1){
+								listSize++;
 							}
 						}
+
+						if(listSize <= currentListSize){
+							currentNode = unionAjacency[currentNode][j];
+							currentListSize = listSize;
+						}
+					}
 				}
+			}
+			else{
+				do{
+					currentNode= dist(rng);
+				}while(currentAvailable[currentNode]== CHROMOSOME_SIZE + 1);
 			}
 		}
 	}
+
+	child.distanceCalculation(fields.TSPGraph);
+	islandPopulation[threadIdx.x] = child;
 }
 
+	__device__ void crossover(metaChromosome islandPopulation[], deviceFields fields){
+		crossoverERO(islandPopulation, fields);
+	}
 
