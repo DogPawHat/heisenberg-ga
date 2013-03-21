@@ -134,20 +134,7 @@ __device__ void bitonicSort(metaChromosome islandPopulation[]){
 
 /*Genetic Operators*/
 
-__device__ short pmxSwap(short value, metaChromosome parent1, short point1, metaChromosome parent2, short point2){
-	for(int i = 0; i < CHROMOSOME_SIZE; i++){
-		if(value == parent2.chromosome[i]){
-			if(i < point1 || i > point2){
-				return i;
-			}else{
-				return pmxSwap(parent1.chromosome[i], parent1, point1, parent2, point2);
-				}
-			}
-		}
-	return 0;
-}
-
-__device__ void crossoverPMX(metaChromosome islandPopulation[], deviceFields fields){
+__device__ void crossoverOX(metaChromosome islandPopulation[], deviceFields fields){
 	/*We need two different paths here beause each thread needs two parents to generate a single offspring.
 	The first half of the block will take one parent from the first half of islandPopulation, while the second parent
 	will come from the second half. This is reversed for the second half of the block. To reduce warp control divergence,
@@ -157,7 +144,7 @@ __device__ void crossoverPMX(metaChromosome islandPopulation[], deviceFields fie
 	metaChromosome parent2;
 	short point1;
 	short point2;
-	metaChromosome offspring = islandPopulation[threadIdx.x];
+	metaChromosome child;
 	thrust::minstd_rand0 rng(fields.seeds[threadIdx.x+blockDim.x*blockIdx.x]);
 	thrust::uniform_int_distribution<short> dist1;
 	thrust::uniform_int_distribution<short> dist2;
@@ -175,20 +162,36 @@ __device__ void crossoverPMX(metaChromosome islandPopulation[], deviceFields fie
 	dist2 = thrust::uniform_int_distribution<short>(point1, CHROMOSOME_SIZE-1);
 	point2 = dist2(rng);
 
-	offspring = parent2;
-
 	for(short i = point1; i <= point2; i++){
-		offspring.chromosome[i] = parent1.chromosome[i];
+		child.chromosome[i] = parent1.chromosome[i];
 	}
 
-	for(short i = point1; i <= point2; i++){
-		if(offspring.chromosome[i] != parent2.chromosome[i]){
-			offspring.chromosome[pmxSwap(parent1.chromosome[i], parent1, point1, parent2, point2)] = parent2.chromosome[i];
+
+	short position = 0;
+	for(short i = 0; i < CHROMOSOME_SIZE; i++){
+		if(!(position < point1)){
+			position = point2 + 1;
+		}
+		if(!(position < CHROMOSOME_SIZE)){
+			break;
+		}
+
+
+		bool nonDuplicate = true;
+		for(short j = point1; j <= point2; j++){
+			if(child.chromosome[j] == parent2.chromosome[i]){
+				nonDuplicate = false;
+				break;
+			}
+		}
+		if(nonDuplicate == true){
+			child.chromosome[position] = parent2.chromosome[i];
+			position++;
 		}
 	}
 
-	offspring.distanceCalculation(fields.TSPGraph);
-	islandPopulation[threadIdx.x] = offspring;
+	child.distanceCalculation(fields.TSPGraph);
+	islandPopulation[threadIdx.x] = child;
 }
 
 __device__ void mutation(metaChromosome islandPopulation[], deviceFields fields){
@@ -302,6 +305,7 @@ __device__ void crossoverERO(metaChromosome islandPopulation[], deviceFields fie
 		}
 	}
 
+
 	for(int i = 0; i < CHROMOSOME_SIZE; i++){
 		if(currentNode < CHROMOSOME_SIZE && currentNode >= 0){
 			child.chromosome[i] = currentNode;
@@ -318,7 +322,7 @@ __device__ void crossoverERO(metaChromosome islandPopulation[], deviceFields fie
 
 			bool nonEmpty = false;
 			for(int j = 0; j < 4; j++){
-				if(unionAjacency[currentNode][j] != CHROMOSOME_SIZE+1){
+				if(unionAjacency[currentNode][j] < CHROMOSOME_SIZE){
 					nonEmpty = true;
 					break;
 				}
@@ -329,7 +333,7 @@ __device__ void crossoverERO(metaChromosome islandPopulation[], deviceFields fie
 				short currentListSize = 4;
 				short listSize= 0;
 				for(int j = 0; j < 4; j++){
-					if(unionAjacency[currentNode][j] != CHROMOSOME_SIZE+1){
+					if(unionAjacency[currentNode][j] < CHROMOSOME_SIZE){
 						listSize = 0;
 						for(int k = 0; k < 4; k++){
 							if(unionAjacency[unionAjacency[currentNode][j]][k] != CHROMOSOME_SIZE+1){
@@ -357,6 +361,6 @@ __device__ void crossoverERO(metaChromosome islandPopulation[], deviceFields fie
 }
 
 	__device__ void crossover(metaChromosome islandPopulation[], deviceFields fields){
-		crossoverERO(islandPopulation, fields);
+		crossoverOX(islandPopulation, fields);
 	}
 
