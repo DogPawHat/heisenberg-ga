@@ -8,17 +8,17 @@ using thrust::random::minstd_rand0;
 using thrust::random::uniform_int_distribution;
 
 //Create an random int array repesenting a solution to a TSP. For inisziation.
-__global__ void createRandomPermutation(deviceFields fields){
+__global__ void createRandomPermutation(deviceFields * fields){
 	short tempResult[CHROMOSOME_SIZE];
 	short temp;
 	short rand;
-	short * chromosome = fields.population[threadIdx.x+blockIdx.x*blockDim.x].chromosome;
+	short * chromosome = fields->population[threadIdx.x+blockIdx.x*blockDim.x].chromosome;
 //	short start = (threadIdx.x + blockIdx.x*blockDim.x)*CHROMOSOME_SIZE;
 
-	minstd_rand0 rng(fields.seeds[threadIdx.x+blockIdx.x*blockDim.x]);
+	minstd_rand0 rng(fields->seeds[threadIdx.x+blockIdx.x*blockDim.x]);
 
 	for(short i = 0; i < CHROMOSOME_SIZE; i++){
-		tempResult[i] = fields.source[i];
+		tempResult[i] = fields->source[i];
 	}
 
 	for(short i = CHROMOSOME_SIZE-1; i >= 0; i--){
@@ -33,12 +33,12 @@ __global__ void createRandomPermutation(deviceFields fields){
 	for(short i = 0; i < CHROMOSOME_SIZE; i++){
 		chromosome[i] = tempResult[i];
 	}
-	fields.population[threadIdx.x+blockIdx.x*blockDim.x].distanceCalculation(fields.TSPGraph);
+	fields->population[threadIdx.x+blockIdx.x*blockDim.x].distanceCalculation(fields->TSPGraph);
 }
 
-__global__ void createRandomSeeds(deviceFields fields, long seed){
+__global__ void createRandomSeeds(deviceFields * fields, long seed){
 	minstd_rand0 rng(seed*(threadIdx.x + blockIdx.x*blockDim.x)-34156);
 
 	uniform_int_distribution<int> dist(0,RAND_MAX);
-	fields.seeds[threadIdx.x + blockDim.x*blockIdx.x]=dist(rng);
+	fields->seeds[threadIdx.x + blockDim.x*blockIdx.x]=dist(rng);
 }

@@ -37,10 +37,10 @@ typedef struct{
 } metaChromosome;
 
 typedef struct{
-	metaChromosome * population; //shorts are only 2 bytes long
-	short * source;
+	metaChromosome population[POPULATION_SIZE];
+	short source[CHROMOSOME_SIZE];
+	int seeds[POPULATION_SIZE];
 	float * TSPGraph;
-	int * seeds;
 } deviceFields;
 
 /*typedef struct{
@@ -54,7 +54,6 @@ typedef struct{
 typedef struct{
 	metaChromosome population[POPULATION_SIZE];
 	short source[CHROMOSOME_SIZE];
-	int seeds[POPULATION_SIZE];
 } hostFields;
 
 #endif

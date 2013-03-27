@@ -5,9 +5,9 @@
 #include "global_structs.h"
 #include "berlin52.h"
 
-__global__ void createRandomPermutation(deviceFields fields);
-__global__ void runGeneticAlgorithm(deviceFields fields);
-__global__ void createRandomSeeds(deviceFields fields, long seed);
+__global__ void createRandomPermutation(deviceFields*);
+__global__ void createRandomSeeds(deviceFields*, long seed);
+__global__ void runGeneticAlgorithm(deviceFields*);
 
 void check(cudaError call){
 	if(call != cudaSuccess){
@@ -35,31 +35,27 @@ int chromosomeCheck(short chromosome[]){
 
 int main(){
 	try{
-		deviceFields device;
+		deviceFields * device;
 		hostFields host;
 
-		cudaMalloc((void**) &device.population, POPULATION_SIZE*sizeof(metaChromosome));
-		cudaMalloc((void**) &device.seeds, POPULATION_SIZE*sizeof(int));
-		cudaMalloc((void**) &device.TSPGraph, 2*CHROMOSOME_SIZE*sizeof(float));
-		cudaMalloc((void**) &device.source, CHROMOSOME_SIZE*sizeof(short));
+		check(cudaMalloc((void**)&device, sizeof(deviceFields)));
 
-		cudaMemcpy(device.TSPGraph, berlin52, 2*CHROMOSOME_SIZE*sizeof(float), cudaMemcpyHostToDevice);
+		cudaMemcpy(device->TSPGraph, berlin52, 2*CHROMOSOME_SIZE*sizeof(float), cudaMemcpyHostToDevice);
 
 		for(int i = 0; i < CHROMOSOME_SIZE; i++){
 			host.source[i] = i;
 		}
 
-		cudaMemcpy(device.source, host.source, CHROMOSOME_SIZE*sizeof(short), cudaMemcpyHostToDevice);
-		check(cudaThreadSynchronize());
+		check(cudaMemcpy(device->source, host.source, CHROMOSOME_SIZE*sizeof(short), cudaMemcpyHostToDevice));
 
 		createRandomSeeds<<<GRID_SIZE, BLOCK_SIZE>>>(device, time(NULL));
 		createRandomPermutation<<<GRID_SIZE, BLOCK_SIZE>>>(device);
-		check(cudaThreadSynchronize());
+		check(cudaDeviceSynchronize());
 
 		runGeneticAlgorithm<<<GRID_SIZE, BLOCK_SIZE>>>(device);
-		check(cudaThreadSynchronize());
+		check(cudaDeviceSynchronize());
 
-		cudaMemcpy(host.population, device.population, POPULATION_SIZE*sizeof(metaChromosome),cudaMemcpyDeviceToHost);
+		check(cudaMemcpy(host.population, device->population, POPULATION_SIZE*sizeof(metaChromosome),cudaMemcpyDeviceToHost));
 
 		for (short i = 0; i < POPULATION_SIZE; i++){
 			std::cout << '[' << chromosomeCheck(host.population[i].chromosome) << ']' << " ";
@@ -68,11 +64,6 @@ int main(){
 			}
 			std::cout << host.population[i].distance << " " << host.population[i].fitness << std::endl;
 		}
-
-
-
-
-		check(cudaFree(device.population));
 	}catch(cudaError * e){
 		std::cout << "Oh crap: " << cudaGetErrorString(*e) << std::endl;
 	}
