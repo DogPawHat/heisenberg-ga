@@ -4,10 +4,18 @@
 #include <thrust/random/uniform_real_distribution.h>
 #include <thrust/random/uniform_int_distribution.h>
 #include "global_structs.h"
+#include "berlin52.h"
 
+using thrust::random::minstd_rand0;
+using thrust::random::uniform_int_distribution;
 
 __shared__ metaChromosome islandPopulation[ISLAND_POPULATION_SIZE];
-__device__ deviceFields * fields;
+__device__ deviceFields device;
+deviceFields host;
+
+__global__ void createRandomPermutation();
+__global__ void createRandomSeeds(long seed);
+__global__ void runGeneticAlgorithm();
 
 __device__ void generation();
 
@@ -30,42 +38,136 @@ __device__ void crossoverERO(metaChromosome*, metaChromosome*);
 
 __device__ void mutation();
 
-__global__ void runGeneticAlgorithm(deviceFields* device){
-	fields = device;
+void check(cudaError call){
+	if(call != cudaSuccess){
+		throw &call;
+	}
+}
+
+int chromosomeCheck(short chromosome[]){
+	int k;
+	for(int i = 0; i < CHROMOSOME_SIZE; i++){
+		k = 0;
+		for(int j = 0; j < CHROMOSOME_SIZE; j++){
+			if(chromosome[j] == i){
+				k++;
+			}else if(chromosome[j] > CHROMOSOME_SIZE || chromosome[j] < 0){
+				return 1;
+			}
+		}
+		if(k != 1){
+			return 1;
+		}
+	}
+	return 0;
+}
+
+int main(){
+	try{
+
+
+
+		for(int i = 0; i < CHROMOSOME_SIZE; i++){
+			host.source[i] = i;
+			host.TSPGraph[i*2] = berlin52[i*2];
+			host.TSPGraph[i*2 + 1] = berlin52[i*2 + 1];
+		}
+
+		check(cudaMemcpyToSymbol(device, &host, sizeof(deviceFields)));
+
+		createRandomSeeds<<<GRID_SIZE, BLOCK_SIZE>>>(time(NULL));
+		createRandomPermutation<<<GRID_SIZE, BLOCK_SIZE>>>();
+		cudaDeviceSynchronize();
+
+		runGeneticAlgorithm<<<GRID_SIZE, BLOCK_SIZE>>>();
+		cudaDeviceSynchronize();
+
+		check(cudaMemcpyFromSymbol(&host, device, sizeof(deviceFields)));
+
+		for (short i = 0; i < POPULATION_SIZE; i++){
+			std::cout << '[' << chromosomeCheck(host.population[i].chromosome) << ']' << " ";
+			for(short j = 0; j < CHROMOSOME_SIZE; j++){
+				std::cout << host.population[i].chromosome[j] << " ";
+			}
+			std::cout << host.population[i].distance << " " << host.population[i].fitness << std::endl;
+		}
+	}catch(cudaError * e){
+		std::cout << "Oh crap: " << cudaGetErrorString(*e) << std::endl;
+	}
+}
+
+__global__ void runGeneticAlgorithm(){
+
 	for(int i = 0; i < GENERATIONS; i++){
 		generation();
 		__syncthreads();
 	}
 }
 
+__global__ void createRandomPermutation(){
+	short tempResult[CHROMOSOME_SIZE];
+	short temp;
+	short rand;
+	short * chromosome = device.population[threadIdx.x+blockIdx.x*blockDim.x].chromosome;
+//	short start = (threadIdx.x + blockIdx.x*blockDim.x)*CHROMOSOME_SIZE;
+
+	minstd_rand0 rng(device.seeds[threadIdx.x+blockIdx.x*blockDim.x]);
+
+	for(short i = 0; i < CHROMOSOME_SIZE; i++){
+		tempResult[i] = device.source[i];
+	}
+
+	for(short i = CHROMOSOME_SIZE-1; i >= 0; i--){
+		uniform_int_distribution<short> dist(0,i);
+		rand = dist(rng);
+		temp = tempResult[rand];
+		tempResult[rand] = tempResult[i];
+		tempResult[i] = temp;
+	}
+	__syncthreads();
+
+	for(short i = 0; i < CHROMOSOME_SIZE; i++){
+		chromosome[i] = tempResult[i];
+	}
+	device.population[threadIdx.x+blockIdx.x*blockDim.x].distanceCalculation(device.TSPGraph);
+}
+
+__global__ void createRandomSeeds(long seed){
+	minstd_rand0 rng(seed*(threadIdx.x + blockIdx.x*blockDim.x)-34156);
+
+	uniform_int_distribution<int> dist(0,RAND_MAX);
+	device.seeds[threadIdx.x + blockDim.x*blockIdx.x]=dist(rng);
+}
+
+
 __device__ void generation(){
 	int gridIndex = threadIdx.x + blockDim.x*blockIdx.x;
-	migration(gridIndex);
-//	islandPopulation[threadIdx.x] = fields.population[gridIndex];
+//	migration(gridIndex);
+	islandPopulation[threadIdx.x] = device.population[gridIndex];
 	__syncthreads();
 
-	thrust::minstd_rand rng(fields->seeds[gridIndex]);
+	thrust::minstd_rand rng(device.seeds[gridIndex]);
 	thrust::uniform_int_distribution<short> dist(1, 100);
 
-	if(dist(rng) < CROSSOVER_CHANCE){
-		crossover();
-	}
+//	if(dist(rng) < CROSSOVER_CHANCE){
+//		crossover();
+//	}
 
-	if(dist(rng) < MUTATION_CHANCE){
-		mutation();
-	}
+//	if(dist(rng) < MUTATION_CHANCE){
+//		mutation();
+//	}
 	
 
-	selection();
-	__syncthreads();
-
-	createNewSeed(fields->seeds[gridIndex]);
-	__syncthreads();
-
-//	sort();
+//	selection();
 //	__syncthreads();
 
-	fields->population[gridIndex] = islandPopulation[threadIdx.x];
+//	createNewSeed(device.seeds[gridIndex]);
+//	__syncthreads();
+
+	sort();
+	__syncthreads();
+
+	device.population[gridIndex] = islandPopulation[threadIdx.x];
 	__syncthreads();
 }
 
@@ -74,11 +176,11 @@ __device__ void generation(){
 
 __device__ void migration(int gridIndex){
 	if(threadIdx.x < BLOCK_SIZE/2){
-		islandPopulation[threadIdx.x] = fields->population[gridIndex];
+		islandPopulation[threadIdx.x] = device.population[gridIndex];
 	}else if(blockIdx.x < GRID_SIZE - 1){
-		islandPopulation[threadIdx.x] = fields->population[gridIndex + BLOCK_SIZE/2];
+		islandPopulation[threadIdx.x] = device.population[gridIndex + BLOCK_SIZE/2];
 	}else{
-		islandPopulation[threadIdx.x] = fields->population[threadIdx.x - BLOCK_SIZE/2];
+		islandPopulation[threadIdx.x] = device.population[threadIdx.x - BLOCK_SIZE/2];
 	}
 }
 
@@ -89,7 +191,7 @@ __device__ void createNewSeed(long seed){
 	thrust::minstd_rand rng(seed);
 
 	thrust::uniform_int_distribution<int> dist(0,RAND_MAX);
-	fields->seeds[threadIdx.x + blockDim.x*blockIdx.x]=dist(rng);
+	device.seeds[threadIdx.x + blockDim.x*blockIdx.x]=dist(rng);
 }
 
 
@@ -100,7 +202,7 @@ __device__ void selection(){
 	float rouletteBall;
 	float currentFitnessInterval;
 
-	islandPopulation[threadIdx.x].distanceCalculation(fields->TSPGraph);
+	islandPopulation[threadIdx.x].distanceCalculation(device.TSPGraph);
 	__syncthreads();
 	fitnessEvauation();
 	__syncthreads();
@@ -123,7 +225,7 @@ __device__ void selection(){
 }
 
 __device__ float randomRouletteBall(){
-	thrust::minstd_rand0 rng(fields->seeds[threadIdx.x + blockDim.x*blockIdx.x]);
+	thrust::minstd_rand0 rng(device.seeds[threadIdx.x + blockDim.x*blockIdx.x]);
 	thrust::uniform_real_distribution<float> dist(0, 1);
 	float result = dist(rng);
 	return result;
@@ -177,7 +279,7 @@ __device__ void mergingBlock(int sortBlockDim, int sortBlockIdx, int sortThreadI
 
 __device__ void compareAndSwap(int i, bool ascending)
 {
-	if(ascending==(islandPopulation[threadIdx.x].distanceCalculation(fields->TSPGraph)>islandPopulation[i].distanceCalculation(fields->TSPGraph))){
+	if(ascending==(islandPopulation[threadIdx.x].distanceCalculation(device.TSPGraph)>islandPopulation[i].distanceCalculation(device.TSPGraph))){
 		metaChromosome t=islandPopulation[threadIdx.x];
 		islandPopulation[threadIdx.x]=islandPopulation[i];
 		islandPopulation[i]=t;
@@ -189,7 +291,7 @@ __device__ void compareAndSwap(int i, bool ascending)
 
 __device__ void mutation(){
 	metaChromosome mutant = islandPopulation[threadIdx.x]; 
-	thrust::minstd_rand0 rng(fields->seeds[threadIdx.x+blockDim.x*blockIdx.x]);
+	thrust::minstd_rand0 rng(device.seeds[threadIdx.x+blockDim.x*blockIdx.x]);
 	thrust::uniform_int_distribution<short> dist1(0, 10);
 	thrust::uniform_int_distribution<short> dist2(0, CHROMOSOME_SIZE-1);
 	short numOfSwaps = dist1(rng);
@@ -205,7 +307,7 @@ __device__ void mutation(){
 		mutant.chromosome[swapPoint2] = temp;
 	}
 
-	mutant.distanceCalculation(fields->TSPGraph);
+	mutant.distanceCalculation(device.TSPGraph);
 	islandPopulation[threadIdx.x] = mutant;
 }
 
@@ -233,7 +335,7 @@ __device__ void crossoverOX(metaChromosome * parent1, metaChromosome * parent2){
 	short point1;
 	short point2;
 	metaChromosome child;
-	thrust::minstd_rand0 rng(fields->seeds[threadIdx.x+blockDim.x*blockIdx.x]);
+	thrust::minstd_rand0 rng(device.seeds[threadIdx.x+blockDim.x*blockIdx.x]);
 	thrust::uniform_int_distribution<short> dist1;
 	thrust::uniform_int_distribution<short> dist2;
 
@@ -270,12 +372,12 @@ __device__ void crossoverOX(metaChromosome * parent1, metaChromosome * parent2){
 		}
 	}
 
-	child.distanceCalculation(fields->TSPGraph);
+	child.distanceCalculation(device.TSPGraph);
 	islandPopulation[threadIdx.x] = child;
 }
 
 __device__ void crossoverERO(metaChromosome * parent1, metaChromosome * parent2){
-	thrust::minstd_rand rng(fields->seeds[threadIdx.x]);
+	thrust::minstd_rand rng(device.seeds[threadIdx.x]);
 	thrust::uniform_int_distribution<short> dist(0, (CHROMOSOME_SIZE-1));
 	unsigned short unionAjacency[CHROMOSOME_SIZE][4];
 	metaChromosome child;
@@ -397,7 +499,7 @@ __device__ void crossoverERO(metaChromosome * parent1, metaChromosome * parent2)
 		}
 	}
 
-	child.distanceCalculation(fields->TSPGraph);
+	child.distanceCalculation(device.TSPGraph);
 	islandPopulation[threadIdx.x] = child;
 }
 

@@ -5,9 +5,13 @@
 #include "global_structs.h"
 #include "berlin52.h"
 
-__global__ void createRandomPermutation(deviceFields*);
-__global__ void createRandomSeeds(deviceFields*, long seed);
-__global__ void runGeneticAlgorithm(deviceFields*);
+__device__ deviceFields device;
+deviceFields host;
+
+
+__global__ void createRandomPermutation();
+__global__ void createRandomSeeds(long seed);
+__global__ void runGeneticAlgorithm();
 
 void check(cudaError call){
 	if(call != cudaSuccess){
@@ -35,27 +39,25 @@ int chromosomeCheck(short chromosome[]){
 
 int main(){
 	try{
-		deviceFields * device;
-		hostFields host;
 
-		check(cudaMalloc((void**)&device, sizeof(deviceFields)));
 
-		cudaMemcpy(device->TSPGraph, berlin52, 2*CHROMOSOME_SIZE*sizeof(float), cudaMemcpyHostToDevice);
 
 		for(int i = 0; i < CHROMOSOME_SIZE; i++){
 			host.source[i] = i;
+			host.TSPGraph[i*2] = berlin52[i*2];
+			host.TSPGraph[i*2 + 1] = berlin52[i*2 + 1];
 		}
 
-		check(cudaMemcpy(device->source, host.source, CHROMOSOME_SIZE*sizeof(short), cudaMemcpyHostToDevice));
+		check(cudaMemcpyToSymbol(device, &host, sizeof(deviceFields)));
 
-		createRandomSeeds<<<GRID_SIZE, BLOCK_SIZE>>>(device, time(NULL));
-		createRandomPermutation<<<GRID_SIZE, BLOCK_SIZE>>>(device);
-		check(cudaDeviceSynchronize());
+		createRandomSeeds<<<GRID_SIZE, BLOCK_SIZE>>>(time(NULL));
+		createRandomPermutation<<<GRID_SIZE, BLOCK_SIZE>>>();
+		cudaDeviceSynchronize();
 
-		runGeneticAlgorithm<<<GRID_SIZE, BLOCK_SIZE>>>(device);
-		check(cudaDeviceSynchronize());
+		runGeneticAlgorithm<<<GRID_SIZE, BLOCK_SIZE>>>();
+		cudaDeviceSynchronize();
 
-		check(cudaMemcpy(host.population, device->population, POPULATION_SIZE*sizeof(metaChromosome),cudaMemcpyDeviceToHost));
+		check(cudaMemcpyFromSymbol(&host, device, sizeof(deviceFields)));
 
 		for (short i = 0; i < POPULATION_SIZE; i++){
 			std::cout << '[' << chromosomeCheck(host.population[i].chromosome) << ']' << " ";
