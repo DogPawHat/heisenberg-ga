@@ -11,36 +11,33 @@
 #define MUTATION_CHANCE 10
 
 typedef struct{
-	short chromosome[CHROMOSOME_SIZE];
-	float distance;
-	__host__ __device__ float distanceCalculation(float TSPGraph[]){
+	int chromosome[CHROMOSOME_SIZE];
+	int distance;
+	__host__ __device__ int distanceCalculation(int TSPGraph[]){
 		distance = distanceBetweenTwoCities(chromosome[CHROMOSOME_SIZE-1], chromosome[0], TSPGraph);
-		for(short i = 1; i < CHROMOSOME_SIZE; i++){
-			short j  = i - 1;
+		for(unsigned int i = 1; i < CHROMOSOME_SIZE; i++){
+			unsigned int j  = i - 1;
 			distance += distanceBetweenTwoCities(chromosome[i], chromosome[j], TSPGraph);
 		}
 		return distance;
 	}
 
-	__host__ __device__ float distanceBetweenTwoCities(short i, short j, float TSPGraph[]){
-		float xi = TSPGraph[2*i];
-		float xj = TSPGraph[2*j];
-		float yi = TSPGraph[2*i+1];
-		float yj = TSPGraph[2*j+1];
-		float xd = fmaxf(xi, xj) - fminf(xi, xj);
-		float yd = fmaxf(yi, yj) - fminf(yi, yj);
-		return(sqrtf(xd*xd + yd*yd));
+	__host__ __device__ int distanceBetweenTwoCities(short i, short j, int TSPGraph[]){
+		int xi = TSPGraph[2*i];
+		int xj = TSPGraph[2*j];
+		int yi = TSPGraph[2*i+1];
+		int yj = TSPGraph[2*j+1];
+		int xd = abs(xi - xj);
+		int yd = abs(yi - yj);
+		return(rintf(sqrtf(xd*xd + yd*yd)));
 	}
-
-
-	float fitness;
 } metaChromosome;
 
 typedef struct{
 	metaChromosome population[POPULATION_SIZE];
-	short source[CHROMOSOME_SIZE];
+	int source[CHROMOSOME_SIZE];
 	int seeds[POPULATION_SIZE];
-	float TSPGraph[2*CHROMOSOME_SIZE];
+	int TSPGraph[2*CHROMOSOME_SIZE];
 } deviceFields;
 
 #endif

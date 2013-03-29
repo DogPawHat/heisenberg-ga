@@ -9,7 +9,7 @@ EDGE_WEIGHT_TYPE: EUC_2D
 #ifndef BERLIN52_H
 #define BERLIN52_H
 
-float berlin52[] = {
+int berlin52[] = {
 	565,575,
 	25,185,
 	345,750,
