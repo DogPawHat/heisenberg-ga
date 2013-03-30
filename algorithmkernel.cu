@@ -5,6 +5,9 @@
 #include <thrust/random/uniform_int_distribution.h>
 #include "global_structs.h"
 #include "berlin52.h"
+#include "rapidxml.hpp"
+#include "rapidxml_utils.hpp"
+
 
 using thrust::random::minstd_rand0;
 using thrust::random::uniform_int_distribution;
@@ -12,6 +15,8 @@ using thrust::random::uniform_int_distribution;
 __shared__ metaChromosome islandPopulation[ISLAND_POPULATION_SIZE];
 __device__ deviceFields device;
 deviceFields host;
+__device__ TSPGraph	deviceTSP;
+TSPGraph hostTSP;
 
 int main();
 void check();
@@ -41,6 +46,8 @@ __device__ void crossoverERO(metaChromosome*, metaChromosome*);
 
 __device__ void mutation();
 
+
+
 void check(cudaError call){
 	if(call != cudaSuccess){
 		throw &call;
@@ -65,7 +72,7 @@ int chromosomeCheck(int chromosome[]){
 	return 0;
 }
 
-int main(){
+int main(int argc, char* argv){
 	try{
 
 		for(int i = 0; i < CHROMOSOME_SIZE; i++){
@@ -94,6 +101,40 @@ int main(){
 	}catch(cudaError * e){
 		std::cout << "Oh crap: " << cudaGetErrorString(*e) << std::endl;
 	}
+}
+
+void parseXMLInstance(char* filename){
+	rapidxml::xml_document<> doc;
+	rapidxml::file<> file(filename);
+	doc.parse<0>(file.data());
+
+	rapidxml::xml_node<>* graph = doc.first_node("graph");
+	setChromosomeSize(rapidxml::count_children(graph));
+
+	hostTSP.adjacencyMatrix= new double(CHROMOSOME_SIZE*CHROMOSOME_SIZE);
+	cudaMalloc((void **) &(deviceTSP.adjacencyMatrix), CHROMOSOME_SIZE*sizeof(double));
+
+	rapidxml::xml_node<>* vertex = graph->first_node("vertex");
+	rapidxml::xml_node<>* edge;
+	rapidxml::xml_attribute<>* cost;
+	for(int i = 0; i < CHROMOSOME_SIZE; i++){
+		edge = vertex->first_node("edge");
+		for(int j = 0; j < CHROMOSOME_SIZE; j++){
+			double* currentCostHost = &(hostTSP.adjacencyMatrix[i*CHROMOSOME_SIZE+j]);
+			double* currentCostDevice = &(deviceTSP.adjacencyMatrix[i*CHROMOSOME_SIZE+j]);
+
+			if(i == j){
+				*currentCostHost = 0;
+				*currentCostDevice = 0;
+			}else{
+				cost = edge->first_attribute("cost");
+				*currentCostHost = *(cost->value());
+				*currentCostHost = *(cost->value());
+			}
+		}
+	}
+
+
 }
 
 void runGeneticAlgorithm(){
@@ -150,13 +191,10 @@ __global__ void generation(){
 	islandPopulation[threadIdx.x].distanceCalculation(device.TSPGraph);
 	__syncthreads();
 
-	sort();
-	__syncthreads();
-
 	selection();
 	__syncthreads();
 
-/*	if(dist(rng) < CROSSOVER_CHANCE){
+	if(dist(rng) < CROSSOVER_CHANCE){
 		crossover();
 		__syncthreads();
 	}
@@ -171,13 +209,6 @@ __global__ void generation(){
 
 	createNewSeed(device.seeds[gridIndex]);
 	__syncthreads();
-
-	islandPopulation[threadIdx.x].distanceCalculation(device.TSPGraph);
-	__syncthreads();
-
-	sort();
-	__syncthreads();
-*/
 
 	sort();
 	__syncthreads();
@@ -263,9 +294,9 @@ __device__ void fitnessEvauation(float fitnessValues[]){
 
 
 __device__ void tournamentSelection(){
-	int N = 10;
+	int N = 5;
 	metaChromosome tournamentChampion;
-	metaChromosome* tournamentChallenger;
+	metaChromosome tournamentChallenger;
 
 	thrust::minstd_rand rng(device.seeds[threadIdx.x + blockIdx.x*blockDim.x]);
 	thrust::uniform_int_distribution<short> dist(0, CHROMOSOME_SIZE-1);
@@ -273,13 +304,13 @@ __device__ void tournamentSelection(){
 	tournamentChampion = islandPopulation[threadIdx.x];
 
 	for(int i = 0; i < N; i++){
-		tournamentChallenger = &islandPopulation[dist(rng)];
-		if(tournamentChampion.distance > tournamentChallenger->distance){
-			tournamentChampion = *tournamentChallenger;
+		tournamentChallenger = islandPopulation[dist(rng)];
+		if(tournamentChampion.distance > tournamentChallenger.distance){
+			tournamentChampion = tournamentChallenger;
 		}
 	}
 
-
+	__syncthreads();
 	islandPopulation[threadIdx.x] = tournamentChampion;
 }
 
