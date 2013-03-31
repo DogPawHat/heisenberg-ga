@@ -4,7 +4,7 @@
 const int BLOCK_SIZE = 64;
 const int GRID_SIZE = 10;
 const int GENERATIONS = 10;
-const int CHROMOSOME_SIZE = 52;
+const int CHROMOSOME_SIZE = setChromosomeSize();
 const int POPULATION_SIZE = (BLOCK_SIZE*GRID_SIZE);
 const int ISLAND_POPULATION_SIZE = BLOCK_SIZE;
 const int CROSSOVER_CHANCE = 60;
@@ -26,7 +26,6 @@ typedef struct{
 		}
 		return distance;
 	}
-
 	__host__ __device__ long distanceBetweenTwoCities(int i, int j, int TSPGraph[]){
 		double xi = TSPGraph[2*i];
 		double xj = TSPGraph[2*j];

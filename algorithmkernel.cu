@@ -3,20 +3,13 @@
 #include <thrust/random/linear_congruential_engine.h>
 #include <thrust/random/uniform_real_distribution.h>
 #include <thrust/random/uniform_int_distribution.h>
-#include "global_structs.h"
-#include "berlin52.h"
 #include "rapidxml.hpp"
 #include "rapidxml_utils.hpp"
+#include "algorithm.cuh"
 
 
 using thrust::random::minstd_rand0;
 using thrust::random::uniform_int_distribution;
-
-__shared__ metaChromosome islandPopulation[ISLAND_POPULATION_SIZE];
-__device__ deviceFields device;
-deviceFields host;
-__device__ TSPGraph	deviceTSP;
-TSPGraph hostTSP;
 
 int main();
 void check();
@@ -27,7 +20,6 @@ void runGeneticAlgorithm();
 __global__ void createRandomPermutation();
 __global__ void createRandomSeeds(long seed);
 __global__ void generation();
-
 __device__ void migration(int);
 
 __device__ void createNewSeed(long);
@@ -45,6 +37,7 @@ __device__ void crossoverOX(metaChromosome*, metaChromosome*);
 __device__ void crossoverERO(metaChromosome*, metaChromosome*);
 
 __device__ void mutation();
+
 
 
 
@@ -112,7 +105,7 @@ void parseXMLInstance(char* filename){
 	setChromosomeSize(rapidxml::count_children(graph));
 
 	hostTSP.adjacencyMatrix= new double(CHROMOSOME_SIZE*CHROMOSOME_SIZE);
-	cudaMalloc((void **) &(deviceTSP.adjacencyMatrix), CHROMOSOME_SIZE*sizeof(double));
+	cudaMalloc((void **) &(deviceTSP.adjacencyMatrix), CHROMOSOME_SIZE*CHROMOSOME_SIZE*sizeof(double));
 
 	rapidxml::xml_node<>* vertex = graph->first_node("vertex");
 	rapidxml::xml_node<>* edge;
@@ -133,8 +126,6 @@ void parseXMLInstance(char* filename){
 			}
 		}
 	}
-
-
 }
 
 void runGeneticAlgorithm(){
