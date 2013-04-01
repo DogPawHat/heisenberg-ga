@@ -7,14 +7,20 @@ geneticAlgorithm * hostAlgorithm;
 geneticAlgorithm * deviceAlgorithm;
 
 
+void check(cudaError call){
+	if(call != cudaSuccess){
+		throw &call;
+	}
+}
+
 int chromosomeCheck(int chromosome[]){
 	int k;
-	for(int i = 0; i < CHROMOSOME_SIZE; i++){
+	for(int i = 0; i < hostAlgorithm->CHROMOSOME_SIZE; i++){
 		k = 0;
-		for(int j = 0; j < CHROMOSOME_SIZE; j++){
+		for(int j = 0; j < hostAlgorithm->CHROMOSOME_SIZE; j++){
 			if(chromosome[j] == i){
 				k++;
-			}else if(chromosome[j] > CHROMOSOME_SIZE || chromosome[j] < 0){
+			}else if(chromosome[j] > hostAlgorithm->CHROMOSOME_SIZE || chromosome[j] < 0){
 				return 1;
 			}
 		}
@@ -33,14 +39,11 @@ void readDataFromXMLInstance(rapidxml::xml_node<>* graph){
 		edge = vertex->first_node("edge");
 		for(int j = 0; j < hostAlgorithm->CHROMOSOME_SIZE; j++){
 			double* currentCostHost = &(hostAlgorithm->adjacencyMatrix[i*hostAlgorithm->CHROMOSOME_SIZE+j]);
-			double* currentCostDevice = &(deviceAlgorithm->adjacencyMatrix[i*hostAlgorithm->CHROMOSOME_SIZE+j]);
 
 			if(i == j){
 				*currentCostHost = 0;
-				*currentCostDevice = 0;
 			}else{
 				cost = edge->first_attribute("cost");
-				*currentCostHost = *(cost->value());
 				*currentCostHost = *(cost->value());
 			}
 		}
@@ -55,10 +58,14 @@ void runGeneticAlgorithm(){
 			(hostAlgorithm->ISLAND_POPULATION_SIZE*hostAlgorithm->CHROMOSOME_SIZE*sizeof(int))
 		>>>
 		(deviceAlgorithm);
-	createRandomSeeds(deviceAlgorithm, time(NULL))<<<
+
+
+	createRandomSeeds<<<
 			hostAlgorithm->GRID_SIZE,
 			hostAlgorithm->BLOCK_SIZE
-		>>>;
+		>>>(deviceAlgorithm, time(NULL));
+	check(cudaDeviceSynchronize());
+
 
 	for(int i = 0; i < hostAlgorithm->GENERATIONS; i++){
 		runOneGeneration
@@ -73,48 +80,82 @@ void runGeneticAlgorithm(){
 }
 
 int main(int argc, char ** argv){
-	char* filename = argv[1];
-	int gridSize = argv[2];
-	int blockSize = argv[3];
-	int generations = argv[4];
+	try{
+		char* filename = argv[1];
+		int blockSize = atoi(argv[2]);
+		int gridSize = atoi(argv[3]);
+		int generations = atoi(argv[4]);
 
 
-	rapidxml::xml_document<> doc;
-	rapidxml::file<> file(filename);
-	doc.parse<0>(file.data());
-	rapidxml::xml_node<>* graph = doc.first_node("graph");
+		rapidxml::xml_document<> doc;
+		rapidxml::file<> file(filename);
+		doc.parse<0>(file.data());
+		rapidxml::xml_node<>* graph = doc.first_node("travellingSalesmanProblemInstance")->first_node("graph");
 
 
-	hostAlgorithm = new geneticAlgorithm(gridSize, blockSize, generations, rapidxml::count_children(graph));
-	cudaMalloc((void**) &deviceAlgorithm, sizeof(geneticAlgorithm));
-	cudaMemcpy(deviceAlgorithm, hostAlgorithm, sizeof(geneticAlgorithm), cudaMemcpyHostToDevice);
+		hostAlgorithm = new geneticAlgorithm(blockSize, gridSize, generations, rapidxml::count_children(graph));
+		geneticAlgorithm * hostDevice = new geneticAlgorithm(blockSize, gridSize, generations, rapidxml::count_children(graph));
+		check(cudaMalloc((void**) &deviceAlgorithm, sizeof(geneticAlgorithm)));
 
-	hostAlgorithm->source = new int[hostAlgorithm->CHROMOSOME_SIZE];
-	cudaMalloc((void**) &(deviceAlgorithm->source), hostAlgorithm->CHROMOSOME_SIZE*sizeof(int));
+		(hostAlgorithm->seeds) = new int[hostAlgorithm->POPULATION_SIZE];
+		cudaMalloc((void**) &(hostDevice->seeds), hostAlgorithm->POPULATION_SIZE*sizeof(long));
 
-	hostAlgorithm->seeds = new long[hostAlgorithm->CHROMOSOME_SIZE];
-	cudaMalloc((void**) &(deviceAlgorithm->seeds), hostAlgorithm->CHROMOSOME_SIZE*sizeof(long));
-	
-	hostAlgorithm->adjacencyMatrix = new double[hostAlgorithm->CHROMOSOME_SIZE*hostAlgorithm->CHROMOSOME_SIZE];
-	cudaMalloc((void**) &(deviceAlgorithm->adjacencyMatrix), hostAlgorithm->CHROMOSOME_SIZE*hostAlgorithm->CHROMOSOME_SIZE*sizeof(double));
-	
-	hostAlgorithm->populationChromosome = new int[hostAlgorithm->POPULATION_SIZE*hostAlgorithm->CHROMOSOME_SIZE];
-	cudaMalloc((void**) &(deviceAlgorithm->populationChromosome), sizeof(int)*hostAlgorithm->POPULATION_SIZE*hostAlgorithm->CHROMOSOME_SIZE);
-	
-	hostAlgorithm->populationDistance = new double[hostAlgorithm->POPULATION_SIZE];
-	cudaMalloc((void**) &(deviceAlgorithm->populationChromosome), sizeof(double)*hostAlgorithm->POPULATION_SIZE);
+		(hostAlgorithm->source) = new int[hostAlgorithm->CHROMOSOME_SIZE];
+		cudaMalloc((void**) &(hostDevice->source), hostAlgorithm->CHROMOSOME_SIZE*sizeof(int));
 
-	readDataFromXMLInstance(graph);
+		(hostAlgorithm->adjacencyMatrix) = new double[hostAlgorithm->CHROMOSOME_SIZE*hostAlgorithm->CHROMOSOME_SIZE];
+		cudaMalloc((void**) &(hostDevice->adjacencyMatrix), hostAlgorithm->CHROMOSOME_SIZE*hostAlgorithm->CHROMOSOME_SIZE*sizeof(double));
 
-	for(int i = 0; i < CHROMOSOME_SIZE; i++){
-		hostAlgorithm->source[i] = i;
-		hostAlgorithm->TSPGraph[i*2] = berlin52[i*2];
-		hostAlgorithm->TSPGraph[i*2 + 1] = berlin52[i*2 + 1];
+		(hostAlgorithm->populationChromosome) = new int[hostAlgorithm->POPULATION_SIZE*hostAlgorithm->CHROMOSOME_SIZE];
+		cudaMalloc((void**) &(hostDevice->populationChromosome), sizeof(int)*hostAlgorithm->POPULATION_SIZE*hostAlgorithm->CHROMOSOME_SIZE);
+
+		(hostAlgorithm->populationDistance) = new double[hostAlgorithm->POPULATION_SIZE];
+		cudaMalloc((void**) &(hostDevice->populationDistance), sizeof(double)*hostAlgorithm->POPULATION_SIZE);
+
+		readDataFromXMLInstance(graph);
+		check(cudaMemcpy(hostDevice->adjacencyMatrix, hostAlgorithm->adjacencyMatrix, sizeof(int)*hostAlgorithm->CHROMOSOME_SIZE, cudaMemcpyHostToDevice));
+
+
+		for(int i = 0; i < hostAlgorithm->CHROMOSOME_SIZE; i++){
+			hostAlgorithm->source[i] = i;
+		}
+
+		check(cudaMemcpy(hostDevice->source, hostAlgorithm->source, sizeof(int)*hostAlgorithm->CHROMOSOME_SIZE, cudaMemcpyHostToDevice));
+		check(cudaMemcpy(deviceAlgorithm, hostDevice, sizeof(geneticAlgorithm), cudaMemcpyHostToDevice));
+
+
+		runGeneticAlgorithm();
+
+		check(cudaMemcpy(hostDevice->populationDistance, hostAlgorithm->populationDistance, sizeof(int)*hostAlgorithm->CHROMOSOME_SIZE, cudaMemcpyDeviceToHost));
+		check(cudaMemcpy(hostDevice->populationChromosome, hostAlgorithm->populationChromosome, sizeof(int)*hostAlgorithm->POPULATION_SIZE*hostAlgorithm->CHROMOSOME_SIZE, cudaMemcpyDeviceToHost));
+
+		for (int i = 0; i < hostAlgorithm->POPULATION_SIZE; i++){
+			std::cout << '[' << chromosomeCheck(&(hostAlgorithm->populationChromosome[i*hostAlgorithm->CHROMOSOME_SIZE])) << ']' << " ";
+			for(int j = 0; j < hostAlgorithm->CHROMOSOME_SIZE; j++){
+				std::cout << hostAlgorithm->populationChromosome[i*hostAlgorithm->CHROMOSOME_SIZE+j] << " ";
+			}
+			std::cout << hostAlgorithm->populationDistance[i] << std::endl;
+		}
+
+
+		free(hostAlgorithm->seeds);
+		free(hostAlgorithm->source);
+		free(hostAlgorithm->adjacencyMatrix);
+		free(hostAlgorithm->populationChromosome);
+		free(hostAlgorithm->populationDistance);
+		free(hostAlgorithm);
+		cudaFree(hostDevice->seeds);
+		cudaFree(hostDevice->source);
+		cudaFree(hostDevice->adjacencyMatrix);
+		cudaFree(hostDevice->populationChromosome);
+		cudaFree(hostDevice->populationDistance);
+		cudaFree(hostDevice);
+		cudaFree(deviceAlgorithm);
+
 	}
-
-	cudaMemcpy((deviceAlgorithm->source, hostAlgorithm->source, sizeof(int), cudaMemcpyHostToDevice);
-
-
+	catch(cudaError * e){
+		std::cout << "Oh crap: " << cudaGetErrorString(*e) << std::endl;
+	}
 }
 
 
