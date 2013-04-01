@@ -71,19 +71,19 @@ private:
 	__host__ __device__ double distanceBetweenTwoCities(int, int);
 };
 
-__global__ void createRandomPermutation(geneticAlgorithm* algorithm){
-	int * tempResult = (int*) &sharedMemoryPool[threadIdx.x*algorithm->CHROMOSOME_SIZE];
+__global__ void createRandomPermutation(geneticAlgorithm algorithm){
+	int * tempResult = (int*) &sharedMemoryPool[threadIdx.x*algorithm.CHROMOSOME_SIZE];
 	int temp;
 	int rand;
-	int * chromosome = &(algorithm->populationChromosome[(threadIdx.x+blockIdx.x*blockDim.x)*algorithm->CHROMOSOME_SIZE]);
+	int * chromosome = &(algorithm.populationChromosome[(threadIdx.x+blockIdx.x*blockDim.x)*algorithm.CHROMOSOME_SIZE]);
 
-	thrust::minstd_rand0 rng(algorithm->seeds[threadIdx.x+blockIdx.x*blockDim.x]);
+	thrust::minstd_rand0 rng(algorithm.seeds[threadIdx.x+blockIdx.x*blockDim.x]);
 
-	for(int i = 0; i < algorithm->CHROMOSOME_SIZE; i++){
-		tempResult[i] = algorithm->source[i];
+	for(int i = 0; i < algorithm.CHROMOSOME_SIZE; i++){
+		tempResult[i] = algorithm.source[i];
 	}
 
-	for(int i = algorithm->CHROMOSOME_SIZE-1; i >= 0; i--){
+	for(int i = algorithm.CHROMOSOME_SIZE-1; i >= 0; i--){
 		thrust::uniform_int_distribution<int> dist(0,i);
 		rand = dist(rng);
 		temp = tempResult[rand];
@@ -92,22 +92,22 @@ __global__ void createRandomPermutation(geneticAlgorithm* algorithm){
 	}
 	__syncthreads();
 
-	for(int i = 0; i < algorithm->CHROMOSOME_SIZE; i++){
+	for(int i = 0; i < algorithm.CHROMOSOME_SIZE; i++){
 		chromosome[i] = tempResult[i];
 	}
-	algorithm->distanceCalculation();
+	algorithm.distanceCalculation();
 }
 
-__global__ void createRandomSeeds(geneticAlgorithm* algorithm, long seed){
+__global__ void createRandomSeeds(geneticAlgorithm algorithm, long seed){
 	thrust::minstd_rand0 rng(seed*(threadIdx.x + blockIdx.x*blockDim.x));
 
 	thrust::uniform_int_distribution<int> dist(0,RAND_MAX);
-	algorithm->seeds[threadIdx.x + blockDim.x*blockIdx.x]=dist(rng);
+	algorithm.seeds[threadIdx.x + blockDim.x*blockIdx.x]=dist(rng);
 }
 
 
-__global__ void runOneGeneration(geneticAlgorithm* algorithm){
-	algorithm->generation();
+__global__ void runOneGeneration(geneticAlgorithm algorithm){
+	algorithm.generation();
 }
 
 __device__ void geneticAlgorithm::generation(){
