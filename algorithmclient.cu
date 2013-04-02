@@ -63,7 +63,7 @@ void runGeneticAlgorithm(geneticAlgorithm * deviceAlgorithm){
 		runOneGeneration
 			<<<
 			GRID_SIZE, BLOCK_SIZE,
-			((deviceAlgorithm->ISLAND_POPULATION_SIZE)*(deviceAlgorithm->CHROMOSOME_SIZE)*sizeof(int))
+			((deviceAlgorithm->ISLAND_POPULATION_SIZE)*(deviceAlgorithm->CHROMOSOME_SIZE)*sizeof(int)*2)
 			>>>
 			(*deviceAlgorithm);
 		check(cudaDeviceSynchronize());
@@ -74,7 +74,7 @@ void runGeneticAlgorithm(geneticAlgorithm * deviceAlgorithm){
 int main(int argc, char ** argv){
 	try{
 		char* filename = argv[1];
-		int generations = atoi(argv[4]);
+		int generations = atoi(argv[2]);
 
 
 		rapidxml::xml_document<> doc;
