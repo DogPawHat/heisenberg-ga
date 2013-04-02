@@ -54,18 +54,13 @@ void readDataFromXMLInstance(rapidxml::xml_node<>* graph, geneticAlgorithm * hos
 }
 
 void runGeneticAlgorithm(geneticAlgorithm * deviceAlgorithm){
-	createRandomPermutation<<<GRID_SIZE, BLOCK_SIZE,(deviceAlgorithm->ISLAND_POPULATION_SIZE*deviceAlgorithm->CHROMOSOME_SIZE*sizeof(int))>>>(*deviceAlgorithm);
+	createRandomPermutation<<<GRID_SIZE, BLOCK_SIZE>>>(*deviceAlgorithm);
 	createRandomSeeds<<<GRID_SIZE, BLOCK_SIZE>>>(*deviceAlgorithm, time(NULL));
 	check(cudaDeviceSynchronize());
 
 
 	for(int i = 0; i < deviceAlgorithm->GENERATIONS; i++){
-		runOneGeneration
-			<<<
-			GRID_SIZE, BLOCK_SIZE,
-			((deviceAlgorithm->ISLAND_POPULATION_SIZE)*(deviceAlgorithm->CHROMOSOME_SIZE)*sizeof(int)*2)
-			>>>
-			(*deviceAlgorithm);
+		runOneGeneration<<<GRID_SIZE, BLOCK_SIZE>>>(*deviceAlgorithm);
 		check(cudaDeviceSynchronize());
 	}
 
@@ -134,9 +129,9 @@ int main(int argc, char ** argv){
 		}
 
 		if(allGood){
-			std::cout << "All good Captian";
+			std::cout << "All good Captian" << std::endl;
 		}else{
-			std::cout << "Well Hitlerfuck";
+			std::cout << "Well Hitlerfuck" << std::endl;
 		}
 
 		free(hostAlgorithm->seeds);
