@@ -1,6 +1,7 @@
 #include "rapidxml.hpp"
 #include "rapidxml_utils.hpp"
 #include "algorithm.cuh"
+#include <algorithm>
 
 
 void check(cudaError call){
@@ -63,7 +64,6 @@ void runGeneticAlgorithm(geneticAlgorithm * deviceAlgorithm){
 		runOneGeneration<<<GRID_SIZE, BLOCK_SIZE>>>(*deviceAlgorithm);
 		check(cudaDeviceSynchronize());
 	}
-
 }
 
 int main(int argc, char ** argv){
@@ -80,6 +80,8 @@ int main(int argc, char ** argv){
 
 		geneticAlgorithm * hostAlgorithm = new geneticAlgorithm(generations, rapidxml::count_children(graph));
 		geneticAlgorithm * deviceAlgorithm = new geneticAlgorithm(generations, rapidxml::count_children(graph));
+
+		cudaDeviceSetLimit(cudaLimitMallocHeapSize, 33554432);
 
 		(hostAlgorithm->seeds) = new int[hostAlgorithm->POPULATION_SIZE];
 		check(cudaMalloc((void**) &(deviceAlgorithm->seeds), hostAlgorithm->POPULATION_SIZE*sizeof(int)));
@@ -100,6 +102,14 @@ int main(int argc, char ** argv){
 		check(cudaMemcpy(deviceAlgorithm->adjacencyMatrix, hostAlgorithm->adjacencyMatrix, sizeof(double)*hostAlgorithm->CHROMOSOME_SIZE*hostAlgorithm->CHROMOSOME_SIZE, cudaMemcpyHostToDevice));
 
 
+/*		for(int i = 0; i < hostAlgorithm->CHROMOSOME_SIZE; i++){
+			for(int j = 0; j < hostAlgorithm->CHROMOSOME_SIZE; j++){
+				std::cout << hostAlgorithm->adjacencyMatrix[i*hostAlgorithm->CHROMOSOME_SIZE+j] << " ";
+			}
+			std::cout << std::endl;
+		}
+*/
+
 		for(int i = 0; i < hostAlgorithm->CHROMOSOME_SIZE; i++){
 			hostAlgorithm->source[i] = i;
 		}
@@ -112,13 +122,28 @@ int main(int argc, char ** argv){
 		check(cudaMemcpy(hostAlgorithm->populationDistance ,deviceAlgorithm->populationDistance, sizeof(double)*hostAlgorithm->POPULATION_SIZE, cudaMemcpyDeviceToHost));
 		check(cudaMemcpy(hostAlgorithm->populationChromosome ,deviceAlgorithm->populationChromosome, sizeof(int)*hostAlgorithm->POPULATION_SIZE*hostAlgorithm->CHROMOSOME_SIZE, cudaMemcpyDeviceToHost));
 
-		for (int i = 0; i < hostAlgorithm->POPULATION_SIZE; i++){
+		double bestDistances[GRID_SIZE*2];
+		for(int i = 0; i < GRID_SIZE; i++){
+			bestDistances[i] = hostAlgorithm->populationDistance[i*((hostAlgorithm->ISLAND_POPULATION_SIZE)/2)];
+		}
+
+
+/*		for (int i = 0; i < hostAlgorithm->POPULATION_SIZE; i++){
 			std::cout << '[' << chromosomeCheck(&(hostAlgorithm->populationChromosome[i*hostAlgorithm->CHROMOSOME_SIZE]), hostAlgorithm) << ']' << " ";
 			for(int j = 0; j < hostAlgorithm->CHROMOSOME_SIZE; j++){
 				std::cout << hostAlgorithm->populationChromosome[i*hostAlgorithm->CHROMOSOME_SIZE+j] << " ";
 			}
 			std::cout << hostAlgorithm->populationDistance[i] << std::endl;
+*/
+
+		std::sort(bestDistances, &bestDistances[GRID_SIZE]);
+
+		for(int i = 0; i < GRID_SIZE; i++){
+			std::cout << bestDistances[i] << std::endl; 
 		}
+
+		std::cout << hostAlgorithm->GENERATIONS << " ";
+
 
 		bool allGood = true;
 		for(int i = 0; i < hostAlgorithm->POPULATION_SIZE; i++){
@@ -134,18 +159,18 @@ int main(int argc, char ** argv){
 			std::cout << "Well Hitlerfuck" << std::endl;
 		}
 
-		free(hostAlgorithm->seeds);
-		free(hostAlgorithm->source);
-		free(hostAlgorithm->adjacencyMatrix);
-		free(hostAlgorithm->populationChromosome);
-		free(hostAlgorithm->populationDistance);
-		free(hostAlgorithm);
+		delete hostAlgorithm->seeds;
+		delete hostAlgorithm->source;
+		delete hostAlgorithm->adjacencyMatrix;
+		delete hostAlgorithm->populationChromosome;
+		delete hostAlgorithm->populationDistance;
+		delete hostAlgorithm;
 		cudaFree(deviceAlgorithm->seeds);
 		cudaFree(deviceAlgorithm->source);
 		cudaFree(deviceAlgorithm->adjacencyMatrix);
 		cudaFree(deviceAlgorithm->populationChromosome);
 		cudaFree(deviceAlgorithm->populationDistance);
-		cudaFree(deviceAlgorithm);
+		delete deviceAlgorithm;
 
 	}
 	catch(cudaError * e){

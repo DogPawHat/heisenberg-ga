@@ -8,8 +8,8 @@
 #include <thrust/random/uniform_int_distribution.h>
 
 
-const int BLOCK_SIZE = 256;
-const int GRID_SIZE = 6;
+const int BLOCK_SIZE = 512;
+const int GRID_SIZE = 14;
 
 class metaChromosome;
 class geneticAlgorithm;
@@ -113,8 +113,15 @@ __global__ void runOneGeneration(geneticAlgorithm algorithm){
 
 __device__ void geneticAlgorithm::generation(){
 	int gridIndex = threadIdx.x + blockDim.x*blockIdx.x;
+	int crossoverChance;
+	int mutationChance;
 
-	islandPopulationChromosome[threadIdx.x] = populationChromosome[gridIndex*CHROMOSOME_SIZE];
+	
+	islandPopulationChromosome[threadIdx.x] = &populationChromosome[gridIndex*CHROMOSOME_SIZE];
+/*	for(int i = 0; i < CHROMOSOME_SIZE; i++){
+		islandPopulationChromosome[threadIdx.x][i] = populationChromosome[gridIndex*CHROMOSOME_SIZE+i];
+	}
+*/
 
 	distanceCalculation();
 	__syncthreads();
@@ -125,13 +132,23 @@ __device__ void geneticAlgorithm::generation(){
 	selection();
 	__syncthreads();
 
-	warpCrossoverChance[threadIdx.x/32] = dist(rng);
-	warpMutationChance[threadIdx.x/32] = dist(rng);
+
+	if(threadIdx.x % 32 == 0){
+		warpCrossoverChance[threadIdx.x/32] = dist(rng);
+		warpMutationChance[threadIdx.x/32] = dist(rng);
+	}
+	__syncthreads();
+
+	createNewSeed(seeds[gridIndex]);
+	__syncthreads();
 
 	if(warpCrossoverChance[threadIdx.x/32] < CROSSOVER_CHANCE){
 		crossover();
 		__syncthreads();
 	}
+
+	createNewSeed(seeds[gridIndex]);
+	__syncthreads();
 
 	if(warpMutationChance[threadIdx.x/32] < MUTATION_CHANCE){
 		mutation();
@@ -146,11 +163,15 @@ __device__ void geneticAlgorithm::generation(){
 
 	sort();
 	__syncthreads();
-
-
+	
 	distanceCalculation();
 	__syncthreads();
 
+/*	for(int i = 0; i < CHROMOSOME_SIZE; i++){
+		populationChromosome[gridIndex*CHROMOSOME_SIZE+i] = islandPopulationChromosome[threadIdx.x][i];
+	}
+	populationDistance[threadIdx.x] = islandPopulationDistance[threadIdx.x];
+*/
 	migration(gridIndex);
 	__syncthreads();
 }
@@ -161,12 +182,12 @@ __device__ void geneticAlgorithm::generation(){
 /* Migration Functions */
 
 __device__ void geneticAlgorithm::migration(int gridIndex){
-	if(blockIdx.x < GRID_SIZE - 1){
+	if(threadIdx.x > (ISLAND_POPULATION_SIZE/2) && blockIdx.x < GRID_SIZE - 1){
 		for(int i = 0; i < CHROMOSOME_SIZE; i++){
 			populationChromosome[(gridIndex+(ISLAND_POPULATION_SIZE))*CHROMOSOME_SIZE+i] = islandPopulationChromosome[(threadIdx.x-(ISLAND_POPULATION_SIZE/2))][i];
 		}
 		populationDistance[gridIndex+(ISLAND_POPULATION_SIZE)] = islandPopulationDistance[threadIdx.x-(ISLAND_POPULATION_SIZE/2)];
-	}else{
+	}else if(threadIdx.x > (ISLAND_POPULATION_SIZE/2) && blockIdx.x == BLOCK_SIZE - 1){
 		for(int i = 0; i < CHROMOSOME_SIZE; i++){
 			populationChromosome[threadIdx.x*CHROMOSOME_SIZE+i] = islandPopulationChromosome[threadIdx.x-(ISLAND_POPULATION_SIZE/2)][i];
 		}
@@ -192,7 +213,7 @@ __device__ void geneticAlgorithm::selection(){
 }
 
 __device__ void geneticAlgorithm::tournamentSelection(){
-	int N = 2;
+	int N = 1;
 	int tournamentChampion;
 	int tournamentChallenger;
 	int temp;
@@ -281,20 +302,33 @@ __device__ void geneticAlgorithm::exchange(int * chromosome1, int * chromosome2)
 /*Genetic Operators*/
 
 __device__ void geneticAlgorithm::mutation(){
-	int * mutant = islandPopulationChromosome[threadIdx.x];
+	int * mutant = new int[CHROMOSOME_SIZE];
 	thrust::minstd_rand0 rng(seeds[threadIdx.x+blockDim.x*blockIdx.x]);
-	thrust::uniform_int_distribution<short> dist2(0, CHROMOSOME_SIZE-1);
 	int swapPoint1;
 	int swapPoint2;
 	int temp;
 
-	swapPoint1 = dist2(rng);
-	swapPoint2 = dist2(rng);
-	temp = mutant[swapPoint1];
-	mutant[swapPoint1] = mutant[swapPoint2];
-	mutant[swapPoint2] = temp;
+	for(int i = 0; i < CHROMOSOME_SIZE; i++){
+		mutant[i] = islandPopulationChromosome[threadIdx.x][i];
+	}
 
+	thrust::uniform_int_distribution<short> dist1(0, CHROMOSOME_SIZE-1);
+	swapPoint1 = dist1(rng);
+	thrust::uniform_int_distribution<short> dist2(swapPoint1, CHROMOSOME_SIZE-1);
+	swapPoint2 = dist2(rng);
+	int offset = swapPoint2 - swapPoint1;
+	for(int i = swapPoint1; i <= swapPoint2; i++){
+		temp = mutant[i];
+		mutant[i] = mutant[swapPoint2-(i-swapPoint1)];
+		mutant[swapPoint2-(i-swapPoint1)] = temp;
+	}
+
+	__syncthreads();
+	for(int i = 0; i < CHROMOSOME_SIZE; i++){
+		islandPopulationChromosome[threadIdx.x][i] = mutant[i];
+	}
 	distanceCalculation();
+	delete mutant;
 }
 
 __device__ void geneticAlgorithm::crossover(){
@@ -318,53 +352,38 @@ __device__ void geneticAlgorithm::crossoverOX(int * parent1, int * parent2){
 	will come from the second half. This is reversed for the second half of the block. To reduce warp control divergence,
 	block size should be a multiple of 2*warp size, 32 being the current value of warps in Fermi and Kepler GPU's*/
 
-	short point1;
-	short point2;
-	int * childBuffer = new int[CHROMOSOME_SIZE];
+	int point1;
+	int point2;
+	int * child = new int[CHROMOSOME_SIZE];
 	thrust::minstd_rand0 rng(seeds[threadIdx.x+blockDim.x*blockIdx.x]);
-	thrust::uniform_int_distribution<short> dist1;
-	thrust::uniform_int_distribution<short> dist2;
 
-	dist1 = thrust::uniform_int_distribution<short>(0, CHROMOSOME_SIZE-1);
+	thrust::uniform_int_distribution<int> dist1 = thrust::uniform_int_distribution<int>(0, CHROMOSOME_SIZE-1);
 	point1 = dist1(rng);
-	dist2 = thrust::uniform_int_distribution<short>(point1, CHROMOSOME_SIZE-1);
+	thrust::uniform_int_distribution<int> dist2 = thrust::uniform_int_distribution<int>(point1, CHROMOSOME_SIZE-1);
 	point2 = dist2(rng);
 
-	for(int i = point1; i <= point2; i++){
-		childBuffer[i] = parent1[i];
+	for(int i = 0; i < CHROMOSOME_SIZE; i++){
+		child[i] = parent2[i];
 	}
 	__syncthreads();
 
-	int position = 0;
-	for(int i = 0; i < CHROMOSOME_SIZE; i++){
-		if(!(position < point1 || position > point2)){
-			position = point2 + 1;
-		}
-		if(!(position < CHROMOSOME_SIZE)){
-			break;
-		}
-
-
-		bool nonDuplicate = true;
-		for(short j = point1; j <= point2; j++){
-			if(childBuffer[j] == parent2[i]){
-				nonDuplicate = false;
-				break;
+	for(int j = point1; j <= point2; j++){
+		for(int i = 0; i < CHROMOSOME_SIZE; i++){
+			if(child[i] == parent1[j]){
+				int temp = child[j];
+				child[j] == child[i];
+				child[i] == temp;
 			}
 		}
-		if(nonDuplicate == true){
-			childBuffer[position] = parent2[i];
-			position++;
-		}
 	}
+
 	__syncthreads();
-	for(int i = point1; i <= point2; i++){
-		parent1[i] = childBuffer[i];
+	for(int i = 0; i < CHROMOSOME_SIZE; i++){
+		parent1[i] = child[i];
 	}
-	__syncthreads();
 
 	distanceCalculation();
-	delete childBuffer;
+	delete child;
 }
 
 __device__ void geneticAlgorithm::distanceCalculation(){
