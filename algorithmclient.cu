@@ -59,17 +59,30 @@ void runGeneticAlgorithm(geneticAlgorithm * deviceAlgorithm){
 	createRandomSeeds<<<GRID_SIZE, BLOCK_SIZE>>>(*deviceAlgorithm, time(NULL));
 	check(cudaDeviceSynchronize());
 
+	bool stop = false;
+
 
 	for(int i = 0; i < deviceAlgorithm->GENERATIONS; i++){
 		runOneGeneration<<<GRID_SIZE, BLOCK_SIZE>>>(*deviceAlgorithm);
 		check(cudaDeviceSynchronize());
+		runOneMigration<<<GRID_SIZE, BLOCK_SIZE>>>(*deviceAlgorithm);
+		check(cudaDeviceSynchronize());
+		for(int i = 0; i < GRID_SIZE; i++){
+			if(deviceAlgorithm->optimalLengthReached[i]){
+				stop = true;
+				break;
+			}
+		}
+		if(stop) break;
+		deviceAlgorithm->runGenerations++;
 	}
 }
 
 int main(int argc, char ** argv){
 	try{
 		char* filename = argv[1];
-		int generations = atoi(argv[2]);
+		int optimalLength = atoi(argv[2]);
+		int generations = atoi(argv[3]);
 
 
 		rapidxml::xml_document<> doc;
@@ -78,8 +91,8 @@ int main(int argc, char ** argv){
 		rapidxml::xml_node<>* graph = doc.first_node("travellingSalesmanProblemInstance")->first_node("graph");
 
 
-		geneticAlgorithm * hostAlgorithm = new geneticAlgorithm(generations, rapidxml::count_children(graph));
-		geneticAlgorithm * deviceAlgorithm = new geneticAlgorithm(generations, rapidxml::count_children(graph));
+		geneticAlgorithm * hostAlgorithm = new geneticAlgorithm(generations, optimalLength, rapidxml::count_children(graph));
+		geneticAlgorithm * deviceAlgorithm = new geneticAlgorithm(generations, optimalLength, rapidxml::count_children(graph));
 
 		cudaDeviceSetLimit(cudaLimitMallocHeapSize, 33554432);
 
@@ -122,9 +135,9 @@ int main(int argc, char ** argv){
 		check(cudaMemcpy(hostAlgorithm->populationDistance ,deviceAlgorithm->populationDistance, sizeof(double)*hostAlgorithm->POPULATION_SIZE, cudaMemcpyDeviceToHost));
 		check(cudaMemcpy(hostAlgorithm->populationChromosome ,deviceAlgorithm->populationChromosome, sizeof(int)*hostAlgorithm->POPULATION_SIZE*hostAlgorithm->CHROMOSOME_SIZE, cudaMemcpyDeviceToHost));
 
-		double bestDistances[GRID_SIZE*2];
-		for(int i = 0; i < GRID_SIZE; i++){
-			bestDistances[i] = hostAlgorithm->populationDistance[i*((hostAlgorithm->ISLAND_POPULATION_SIZE)/2)];
+		double bestDistances[GRID_SIZE*4];
+		for(int i = 0; i < GRID_SIZE*4; i++){
+			bestDistances[i] = hostAlgorithm->populationDistance[i*((hostAlgorithm->ISLAND_POPULATION_SIZE)/4)];
 		}
 
 
@@ -134,7 +147,9 @@ int main(int argc, char ** argv){
 				std::cout << hostAlgorithm->populationChromosome[i*hostAlgorithm->CHROMOSOME_SIZE+j] << " ";
 			}
 			std::cout << hostAlgorithm->populationDistance[i] << std::endl;
+		}
 */
+
 
 		std::sort(bestDistances, &bestDistances[GRID_SIZE]);
 
@@ -142,7 +157,7 @@ int main(int argc, char ** argv){
 			std::cout << bestDistances[i] << std::endl; 
 		}
 
-		std::cout << hostAlgorithm->GENERATIONS << " ";
+		std::cout << deviceAlgorithm->runGenerations << " ";
 
 
 		bool allGood = true;

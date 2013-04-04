@@ -9,7 +9,7 @@
 
 
 const int BLOCK_SIZE = 512;
-const int GRID_SIZE = 14;
+const int GRID_SIZE = 12;
 
 class metaChromosome;
 class geneticAlgorithm;
@@ -27,29 +27,39 @@ public:
 	const int ISLAND_POPULATION_SIZE;
 	const int CROSSOVER_CHANCE;
 	const int MUTATION_CHANCE;
+	const int OPTIMAL_LENGTH;
+	int runGenerations;
 	int * source;
 	int * seeds;
 	double * adjacencyMatrix;
 	int * populationChromosome;
 	double * populationDistance;
+	bool optimalLengthReached[GRID_SIZE];
 
 
-	__host__ __device__ geneticAlgorithm(const int GENERATIONS, const int CHROMOSOME_SIZE, const int CROSSOVER_CHANCE = 75, const int MUTATION_CHANCE = 10)
+	__host__ __device__ geneticAlgorithm(const int GENERATIONS, const int OPTIMAL_LENGTH, const int CHROMOSOME_SIZE, const int CROSSOVER_CHANCE = 90, const int MUTATION_CHANCE = 25)
 		: GENERATIONS(GENERATIONS),
+		  OPTIMAL_LENGTH(OPTIMAL_LENGTH),
 		CHROMOSOME_SIZE(CHROMOSOME_SIZE),
 		POPULATION_SIZE(BLOCK_SIZE*GRID_SIZE),
 		ISLAND_POPULATION_SIZE(BLOCK_SIZE),
 		CROSSOVER_CHANCE(CROSSOVER_CHANCE),
-		MUTATION_CHANCE(MUTATION_CHANCE) 
-	{}
+		MUTATION_CHANCE(MUTATION_CHANCE) ,
+		runGenerations(0)
+	{
+		for(int i = 0; i < GRID_SIZE; i++){
+			optimalLengthReached[i] = false;
+		}
+
+	}
 
 	__device__ void generation();
 	__device__ void distanceCalculation();
 	__device__ double distanceCalculation(int*);
+	__device__ void migration();
 
 private:
 
-	__device__ void migration(int);
 
 	__device__ void createNewSeed(long);
 
@@ -60,7 +70,7 @@ private:
 	__device__ void exchange(int *, int *);
 
 	__device__ void crossover();
-	__device__ void crossoverOX(int*, int*);
+	__device__ void crossoverPMX(int*, int*);
 
 	__device__ void mutation();
 
@@ -118,10 +128,7 @@ __device__ void geneticAlgorithm::generation(){
 
 	
 	islandPopulationChromosome[threadIdx.x] = &populationChromosome[gridIndex*CHROMOSOME_SIZE];
-/*	for(int i = 0; i < CHROMOSOME_SIZE; i++){
-		islandPopulationChromosome[threadIdx.x][i] = populationChromosome[gridIndex*CHROMOSOME_SIZE+i];
-	}
-*/
+
 
 	distanceCalculation();
 	__syncthreads();
@@ -167,32 +174,35 @@ __device__ void geneticAlgorithm::generation(){
 	distanceCalculation();
 	__syncthreads();
 
-/*	for(int i = 0; i < CHROMOSOME_SIZE; i++){
-		populationChromosome[gridIndex*CHROMOSOME_SIZE+i] = islandPopulationChromosome[threadIdx.x][i];
-	}
-	populationDistance[threadIdx.x] = islandPopulationDistance[threadIdx.x];
-*/
-	migration(gridIndex);
+	populationDistance[gridIndex] = islandPopulationDistance[threadIdx.x];
 	__syncthreads();
 }
 
 
-
+__global__ void runOneMigration(geneticAlgorithm algorithm){
+	algorithm.migration();
+}
 
 /* Migration Functions */
 
-__device__ void geneticAlgorithm::migration(int gridIndex){
-	if(threadIdx.x > (ISLAND_POPULATION_SIZE/2) && blockIdx.x < GRID_SIZE - 1){
+__device__ void geneticAlgorithm::migration(){
+	int gridIndex = threadIdx.x + blockIdx.x*blockDim.x;
+	int divisor = 4;
+	if(threadIdx.x >= ISLAND_POPULATION_SIZE/divisor){
+		int migrationBlockOffset = threadIdx.x/(ISLAND_POPULATION_SIZE/divisor);
+		int migrationSourceBlockIdx = (migrationBlockOffset+blockIdx.x)%GRID_SIZE;
+		int migrationDestinationThreadIdx = gridIndex;
+		int migrationSourceThreadIdx = migrationSourceBlockIdx*blockDim.x + (threadIdx.x%(ISLAND_POPULATION_SIZE/divisor));
+		populationDistance[migrationDestinationThreadIdx] = populationDistance[migrationSourceThreadIdx];
 		for(int i = 0; i < CHROMOSOME_SIZE; i++){
-			populationChromosome[(gridIndex+(ISLAND_POPULATION_SIZE))*CHROMOSOME_SIZE+i] = islandPopulationChromosome[(threadIdx.x-(ISLAND_POPULATION_SIZE/2))][i];
+			populationChromosome[migrationDestinationThreadIdx*CHROMOSOME_SIZE+i] = populationChromosome[migrationSourceThreadIdx*CHROMOSOME_SIZE+i];
 		}
-		populationDistance[gridIndex+(ISLAND_POPULATION_SIZE)] = islandPopulationDistance[threadIdx.x-(ISLAND_POPULATION_SIZE/2)];
-	}else if(threadIdx.x > (ISLAND_POPULATION_SIZE/2) && blockIdx.x == BLOCK_SIZE - 1){
-		for(int i = 0; i < CHROMOSOME_SIZE; i++){
-			populationChromosome[threadIdx.x*CHROMOSOME_SIZE+i] = islandPopulationChromosome[threadIdx.x-(ISLAND_POPULATION_SIZE/2)][i];
-		}
-		populationDistance[threadIdx.x] = islandPopulationDistance[threadIdx.x-(ISLAND_POPULATION_SIZE/2)];
 	}
+	__syncthreads();
+	if(populationDistance[gridIndex] < OPTIMAL_LENGTH && threadIdx.x == 0){
+		optimalLengthReached[blockIdx.x] = true;
+	}
+
 }
 
 
@@ -213,7 +223,7 @@ __device__ void geneticAlgorithm::selection(){
 }
 
 __device__ void geneticAlgorithm::tournamentSelection(){
-	int N = 1;
+	int N = 5;
 	int tournamentChampion;
 	int tournamentChallenger;
 	int temp;
@@ -334,19 +344,16 @@ __device__ void geneticAlgorithm::mutation(){
 __device__ void geneticAlgorithm::crossover(){
 	int * parent1;
 	int * parent2;
+	thrust::minstd_rand rng(seeds[threadIdx.x + blockIdx.x*blockDim.x]);
+	thrust::uniform_int_distribution<int> dist(0, ISLAND_POPULATION_SIZE-1);
 
-	if(threadIdx.x < (BLOCK_SIZE/2)){
-		parent1 = islandPopulationChromosome[threadIdx.x];
-		parent2 = islandPopulationChromosome[threadIdx.x+(BLOCK_SIZE/2)];
-	}else{
-		parent1 = islandPopulationChromosome[threadIdx.x];
-		parent2 = islandPopulationChromosome[threadIdx.x-(BLOCK_SIZE/2)];
-	}
+	parent1 = islandPopulationChromosome[threadIdx.x];
+	parent2 = islandPopulationChromosome[dist(rng)];
 
-	crossoverOX(parent1, parent2);
+	crossoverPMX(parent1, parent2);
 }
 
-__device__ void geneticAlgorithm::crossoverOX(int * parent1, int * parent2){
+__device__ void geneticAlgorithm::crossoverPMX(int * parent1, int * parent2){
 	/*We need two different paths here because each thread needs two parents to generate a single offspring.
 	The first half of the block will take one parent from the first half of islandPopulation, while the second parent
 	will come from the second half. This is reversed for the second half of the block. To reduce warp control divergence,
@@ -371,8 +378,8 @@ __device__ void geneticAlgorithm::crossoverOX(int * parent1, int * parent2){
 		for(int i = 0; i < CHROMOSOME_SIZE; i++){
 			if(child[i] == parent1[j]){
 				int temp = child[j];
-				child[j] == child[i];
-				child[i] == temp;
+				child[j] = child[i];
+				child[i] = temp;
 			}
 		}
 	}
