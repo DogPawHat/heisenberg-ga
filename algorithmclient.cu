@@ -135,20 +135,19 @@ int main(int argc, char ** argv){
 		check(cudaMemcpy(hostAlgorithm->populationDistance ,deviceAlgorithm->populationDistance, sizeof(double)*hostAlgorithm->POPULATION_SIZE, cudaMemcpyDeviceToHost));
 		check(cudaMemcpy(hostAlgorithm->populationChromosome ,deviceAlgorithm->populationChromosome, sizeof(int)*hostAlgorithm->POPULATION_SIZE*hostAlgorithm->CHROMOSOME_SIZE, cudaMemcpyDeviceToHost));
 
-		double bestDistances[GRID_SIZE*4];
-		for(int i = 0; i < GRID_SIZE*4; i++){
-			bestDistances[i] = hostAlgorithm->populationDistance[i*((hostAlgorithm->ISLAND_POPULATION_SIZE)/4)];
-		}
 
-
-/*		for (int i = 0; i < hostAlgorithm->POPULATION_SIZE; i++){
+		for (int i = 0; i < hostAlgorithm->POPULATION_SIZE; i++){
 			std::cout << '[' << chromosomeCheck(&(hostAlgorithm->populationChromosome[i*hostAlgorithm->CHROMOSOME_SIZE]), hostAlgorithm) << ']' << " ";
 			for(int j = 0; j < hostAlgorithm->CHROMOSOME_SIZE; j++){
 				std::cout << hostAlgorithm->populationChromosome[i*hostAlgorithm->CHROMOSOME_SIZE+j] << " ";
 			}
 			std::cout << hostAlgorithm->populationDistance[i] << std::endl;
 		}
-*/
+
+		double bestDistances[GRID_SIZE*4];
+		for(int i = 0; i < GRID_SIZE*4; i++){
+			bestDistances[i] = hostAlgorithm->populationDistance[i*((hostAlgorithm->ISLAND_POPULATION_SIZE)/4)];
+		}
 
 
 		std::sort(bestDistances, &bestDistances[GRID_SIZE]);
