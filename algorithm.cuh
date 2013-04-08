@@ -619,4 +619,100 @@ __device__ void geneticAlgorithm::crossoverERX(int * parent1, int * parent2){
 	distanceCalculation();
 }
 
+__device__ void geneticAlgorithm::crossoverPMX(int * parent1, int * parent2){
+	/*We need two different paths here because each thread needs two parents to generate a single offspring.
+	The first half of the block will take one parent from the first half of islandPopulation, while the second parent
+	will come from the second half. This is reversed for the second half of the block. To reduce warp control divergence,
+	block size should be a multiple of 2*warp size, 32 being the current value of warps in Fermi and Kepler GPU's*/
+
+	int point1;
+	int point2;
+	int * child = new int[CHROMOSOME_SIZE];
+	thrust::minstd_rand0 rng(seeds[threadIdx.x+blockDim.x*blockIdx.x]);
+
+	thrust::uniform_int_distribution<int> dist1 = thrust::uniform_int_distribution<int>(0, CHROMOSOME_SIZE-1);
+	point1 = dist1(rng);
+	thrust::uniform_int_distribution<int> dist2 = thrust::uniform_int_distribution<int>(point1, CHROMOSOME_SIZE-1);
+	point2 = dist2(rng);
+
+	for(int i = 0; i < CHROMOSOME_SIZE; i++){
+		child[i] = parent2[i];
+	}
+	__syncthreads();
+
+	for(int j = point1; j <= point2; j++){
+		for(int i = 0; i < CHROMOSOME_SIZE; i++){
+			if(child[i] == parent1[j]){
+				int temp = child[j];
+				child[j] = child[i];
+				child[i] = temp;
+			}
+		}
+	}
+
+	__syncthreads();
+	for(int i = 0; i < CHROMOSOME_SIZE; i++){
+		parent1[i] = child[i];
+	}
+
+	distanceCalculation();
+	delete child;
+}
+
+__device__ void geneticAlgorithm::crossoverGX(int * parent1, int * parent2){
+	int * parent1Buffer = new int[CHROMOSOME_SIZE];
+	int * parent2Buffer = new int[CHROMOSOME_SIZE];
+	int * child = new int[CHROMOSOME_SIZE];
+	thrust::minstd_rand0 rng(seeds[threadIdx.x+blockDim.x*blockIdx.x]);
+	for(int i = 1; i < CHROMOSOME_SIZE; i++){
+		parent1Buffer = parent1[i];
+		parent2Buffer = parent2[i];
+	}
+
+
+
+	child[0] = parent1Buffer[0];
+	for(int k = 0; k < CHROMOSOME_SIZE; k++){
+		for(int i = k; i < CHROMOSOME_SIZE; i++){
+			for(int j = k; j < CHROMOSOME_SIZE; j++){
+				if(child[k] == parent1Buffer[i-1] && child[k] == parent2Buffer[j-1]){
+					if(distanceBetweenTwoCities(child[k], parent1Buffer[i]) < distanceBetweenTwoCities(child[k], parent2Buffer[i])){
+					child[k+1] = parent1Buffer[i];
+					}else{
+					child[k+1] = parent2Buffer[i];
+					}
+
+					int tempA = parent1Buffer[k];
+					int tempB = parent2Buffer[k];
+					parent1Buffer[k] = parent1Buffer[i-1];
+					parent2Buffer[k] = parent2Buffer[j-1];
+					parent1Buffer[i-1] = tempA;
+					parent2Buffer[j-1] = tempB;
+					break;
+				}
+			}
+		}
+	}
+
+	distanceCalculation();
+	delete child;
+}
+
+__device__ void geneticAlgorithm::distanceCalculation(){
+	islandPopulationDistance[threadIdx.x] = distanceCalculation(islandPopulationChromosome[threadIdx.x]);
+}
+
+__device__ double geneticAlgorithm::distanceCalculation(int * chromosome){
+	double distance = distanceBetweenTwoCities(chromosome[CHROMOSOME_SIZE-1], chromosome[0]);
+	for(unsigned int i = 1; i < CHROMOSOME_SIZE; i++){
+		unsigned int j  = i - 1;
+		distance += distanceBetweenTwoCities(chromosome[i], chromosome[j]);
+	}
+	return distance;
+}
+
+__device__ double geneticAlgorithm::distanceBetweenTwoCities(int i, int j){
+	return adjacencyMatrix[i*CHROMOSOME_SIZE+j];
+}
+
 #endif
