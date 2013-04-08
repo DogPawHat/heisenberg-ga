@@ -1,5 +1,4 @@
 CUDA_INSTALL_PATH ?= /usr/local/cuda
-BOOST_INSTALL_PATH ?= /home/ciaran/include
 #
 # On windows, store location of Visual Studio compiler
 # into the environment. This will be picked up by nvcc,
@@ -13,7 +12,7 @@ endif
 NVCC := nvcc
 
 
-INCLUDES = -I. -I$(CUDA_INSTALL_PATH)/include -I$(BOOST_INSTALL_PATH)
+INCLUDES = -I. -I$(CUDA_INSTALL_PATH)/include
 export OPENCC_FLAGS :=
 export PTXAS_FLAGS :=
 CFLAGS := $(OPENCC_FLAGS) $(PTXAS_FLAGS) $(INCLUDES) -arch sm_20

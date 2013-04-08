@@ -164,7 +164,7 @@ int main(int argc, char ** argv){
 */
 		std::sort(hostAlgorithm->populationDistance, &hostAlgorithm->populationDistance[deviceAlgorithm->POPULATION_SIZE]);
 
-		double bestDistances[deviceAlgorithm->GRID_SIZE];
+		double * bestDistances = new double[deviceAlgorithm->GRID_SIZE];
 		for(int i = 0; i < deviceAlgorithm->GRID_SIZE; i++){
 			bestDistances[i] = hostAlgorithm->populationDistance[i];
 		}
