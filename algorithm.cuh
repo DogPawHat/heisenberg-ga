@@ -70,12 +70,15 @@ private:
 
 	__device__ void selection();
 	__device__ void tournamentSelection();
+	__device__ void rankSelection();
+	__device__ void roulletteSelection();
 
 	__device__ void sort();
 	__device__ void exchange(int *, int *);
 
 	__device__ void crossover();
 	__device__ void crossoverPMX(int*, int*);
+	__device__ void crossoverERX(int *, int *);
 
 	__device__ void mutation();
 	__device__ void inversionMutation();
@@ -122,9 +125,7 @@ __global__ void createRandomPermutation(geneticAlgorithm algorithm){
 		chromosome[i] = tempResult[i];
 	}
 	algorithm.populationDistance[threadIdx.x+blockIdx.x*blockDim.x] = algorithm.distanceCalculation(chromosome);
-	if(threadIdx.x == 0){
-		delete tempResult;
-	}
+	delete tempResult;
 }
 
 __global__ void createRandomSeeds(geneticAlgorithm algorithm, long seed){
@@ -232,7 +233,7 @@ __device__ void geneticAlgorithm::createNewSeed(long seed){
 /*Selection Functions*/
 
 __device__ void geneticAlgorithm::selection(){
-	tournamentSelection();
+	rankSelection();
 }
 
 __device__ void geneticAlgorithm::tournamentSelection(){
@@ -261,6 +262,94 @@ __device__ void geneticAlgorithm::tournamentSelection(){
 		__syncthreads();
 	}
 	distanceCalculation();
+}
+
+__device__ void geneticAlgorithm::rankSelection(){
+	sort();
+	__syncthreads();
+	int * selection = new int[CHROMOSOME_SIZE];
+
+
+	rank[threadIdx.x] = ISLAND_POPULATION_SIZE-threadIdx.x;
+	__syncthreads();
+	for(int stride = 1; stride < ISLAND_POPULATION_SIZE; stride *= 2){
+		int index = threadIdx.x*2*stride;
+		if(index+stride < ISLAND_POPULATION_SIZE){
+			rank[index] += rank[index+stride];
+		}
+		__syncthreads();
+	}
+
+	for(int stride = ISLAND_POPULATION_SIZE/4; stride > 0; stride /= 2){
+		__syncthreads();
+		int index = (threadIdx.x+1)*2*stride;
+		if (index < ISLAND_POPULATION_SIZE && index-stride > 0)
+		{
+			rank[index-stride] += rank[index];
+		}
+	}
+	__syncthreads();
+
+	thrust::minstd_rand rng(seeds[threadIdx.x+blockIdx.x*blockDim.x]);
+	thrust::uniform_int_distribution<int> dist(rank[blockDim.x-1], rank[0]-1);
+
+	int roulletteBall = dist(rng);
+
+	for(int i = BLOCK_SIZE-1; i >= 0; i--){
+		if(roulletteBall > rank[i] && roulletteBall <= rank[i-1]){
+			for(int j = 0; j < CHROMOSOME_SIZE; j++){
+				selection[j] = islandPopulationChromosome[i][j];
+			}
+			break;
+		}
+	}
+
+	__syncthreads();
+	for(int j = 0; j < CHROMOSOME_SIZE; j++){
+		islandPopulationChromosome[threadIdx.x][j] = selection[j];
+	}
+
+	delete selection;
+	__syncthreads();
+
+	distanceCalculation();
+	__syncthreads();
+}
+
+__device__ void geneticAlgorithm::roulletteSelection(){
+	sort();
+	__syncthreads();
+
+	int * selection = new int[CHROMOSOME_SIZE];
+
+	for(int stride = 1; stride < ISLAND_POPULATION_SIZE; stride *= 2){
+		if(threadIdx.x + stride < ISLAND_POPULATION_SIZE){
+			islandPopulationDistance[threadIdx.x] += islandPopulationDistance[threadIdx.x+stride];
+		}
+	}
+
+	islandPopulationDistance[threadIdx.x] = islandPopulationDistance[threadIdx.x] - islandPopulationDistance[ISLAND_POPULATION_SIZE];
+
+	thrust::minstd_rand rng(seeds[threadIdx.x+blockIdx.x*blockDim.x]);
+	thrust::uniform_real_distribution<double> dist(islandPopulationDistance[blockDim.x-1], islandPopulationDistance[0]);
+
+	double roulletteBall = dist(rng);
+
+	for(int i = BLOCK_SIZE-1; i >= 0; i--){
+		if(roulletteBall > islandPopulationDistance[i] && roulletteBall < islandPopulationDistance[i-1]){
+			for(int j = 0; j < CHROMOSOME_SIZE; j++){
+				selection[j] = islandPopulationChromosome[i][j];
+			}
+			break;
+		}
+	}
+
+	__syncthreads();
+	for(int j = 0; j < CHROMOSOME_SIZE; j++){
+		islandPopulationChromosome[threadIdx.x][j] = selection[j];
+	}
+	distanceCalculation();
+	delete selection;
 }
 
 /* Sorting Algorithms */
@@ -361,7 +450,6 @@ __device__ void geneticAlgorithm::greedyMutation(){
 	thrust::minstd_rand0 rng(seeds[threadIdx.x+blockDim.x*blockIdx.x]);
 	int swapPoint1;
 	int swapPoint2;
-	int temp;
 
 	for(int i = 0; i < CHROMOSOME_SIZE; i++){
 		mutant[i] = islandPopulationChromosome[threadIdx.x][i];
@@ -389,8 +477,11 @@ __device__ void geneticAlgorithm::greedyMutation(){
 	}
 
 	__syncthreads();
-	for(int i = 0; i < CHROMOSOME_SIZE; i++){
-		islandPopulationChromosome[threadIdx.x][i] = mutant[i];
+
+	if(distanceCalculation(mutant) < distanceCalculation(islandPopulationChromosome[threadIdx.x])){
+		for(int i = 0; i < CHROMOSOME_SIZE; i++){
+			islandPopulationChromosome[threadIdx.x][i] = mutant[i];
+		}
 	}
 	distanceCalculation();
 	delete mutant;
@@ -409,63 +500,123 @@ __device__ void geneticAlgorithm::crossover(){
 	crossoverPMX(parent1, parent2);
 }
 
-__device__ void geneticAlgorithm::crossoverPMX(int * parent1, int * parent2){
-	/*We need two different paths here because each thread needs two parents to generate a single offspring.
-	The first half of the block will take one parent from the first half of islandPopulation, while the second parent
-	will come from the second half. This is reversed for the second half of the block. To reduce warp control divergence,
-	block size should be a multiple of 2*warp size, 32 being the current value of warps in Fermi and Kepler GPU's*/
+__device__ void geneticAlgorithm::crossoverERX(int * parent1, int * parent2){
 
-	int point1;
-	int point2;
+	unsigned int edgeList[CHROMOSOME_SIZE][4];
 	int * child = new int[CHROMOSOME_SIZE];
-	thrust::minstd_rand0 rng(seeds[threadIdx.x+blockDim.x*blockIdx.x]);
-
-	thrust::uniform_int_distribution<int> dist1 = thrust::uniform_int_distribution<int>(0, CHROMOSOME_SIZE-1);
-	point1 = dist1(rng);
-	thrust::uniform_int_distribution<int> dist2 = thrust::uniform_int_distribution<int>(point1, CHROMOSOME_SIZE-1);
-	point2 = dist2(rng);
 
 	for(int i = 0; i < CHROMOSOME_SIZE; i++){
-		child[i] = parent2[i];
-	}
-	__syncthreads();
+		for(int j = 0; j < CHROMOSOME_SIZE; j++){
+			for(int k = 0; k < CHROMOSOME_SIZE; k++){
+				if(parent1[j] == i && parent2[k] == i){
+					int xa, xb, ya, yb;
 
-	for(int j = point1; j <= point2; j++){
-		for(int i = 0; i < CHROMOSOME_SIZE; i++){
-			if(child[i] == parent1[j]){
-				int temp = child[j];
-				child[j] = child[i];
-				child[i] = temp;
+					switch(j){
+					case 0:
+						xa = parent1[CHROMOSOME_SIZE - 1];
+						xb = parent1[j+1];
+						break;
+					case (CHROMOSOME_SIZE-1):
+						xa = parent1[j - 1];
+						xb = parent1[0];
+					break;
+					default:
+						xa = parent1[j - 1];
+						xb = parent1[j+1];
+						break;
+					}
+
+					switch(k){
+					case 0:
+						ya = parent2[CHROMOSOME_SIZE - 1];
+						yb = parent2[k+1];
+						break;
+					case (CHROMOSOME_SIZE-1):
+						ya = parent2[k-1];
+						yb = parent2[0];
+					break;
+					default:
+						ya = parent2[k-1];
+						yb = parent2[k+1];
+						break;
+					}
+
+					edgeList[i][0] = xa;
+					edgeList[i][1] = xb;
+					if(xa != ya || xb != ya){
+						edgeList[i][2] = ya;
+					}else{
+						edgeList[i][2] = CHROMOSOME_SIZE;
+					}
+
+					if(xa != yb || xb != yb){
+						edgeList[i][3] = yb;
+					}
+					else
+					{
+						edgeList[i][3] = CHROMOSOME_SIZE;
+					}
+					break;
+				}
 			}
 		}
 	}
 
-	__syncthreads();
+	int currentNode = parent2[0];
+
+
 	for(int i = 0; i < CHROMOSOME_SIZE; i++){
-		parent1[i] = child[i];
+		if(currentNode < CHROMOSOME_SIZE && currentNode >= 0){
+			child[i] = currentNode;
+
+			for(int j = 0; j < CHROMOSOME_SIZE; j++){
+				for(int k = 0; k < 4; k++){
+					if(currentNode==edgeList[j][k]){
+						edgeList[j][k] = CHROMOSOME_SIZE;
+						break;
+					}
+				}
+			}
+
+			bool nonEmpty = false;
+			for(int j = 0; j < 4; j++){
+				if(edgeList[currentNode][j] < CHROMOSOME_SIZE){
+					nonEmpty = true;
+					break;
+				}
+			}
+
+
+			if(nonEmpty){
+				short currentListSize = 4;
+				short listSize= 0;
+				for(int j = 0; j < 4; j++){
+					if(edgeList[currentNode][j] < CHROMOSOME_SIZE){
+						listSize = 0;
+						for(int k = 0; k < 4; k++){
+							if(edgeList[edgeList[currentNode][j]][k] != CHROMOSOME_SIZE){
+								listSize++;
+							}
+						}
+
+						if(listSize <= currentListSize){
+							currentNode = edgeList[currentNode][j];
+							currentListSize = listSize;
+						}
+					}
+				}
+			}
+			else{
+				do{
+					currentNode= dist(rng);
+				}while(currentAvailable[currentNode]== CHROMOSOME_SIZE + 1);
+			}
+		}
 	}
+
+
 
 	distanceCalculation();
-	delete child;
 }
-
-__device__ void geneticAlgorithm::distanceCalculation(){
-	islandPopulationDistance[threadIdx.x] = distanceCalculation(islandPopulationChromosome[threadIdx.x]);
-}
-
-__device__ double geneticAlgorithm::distanceCalculation(int * chromosome){
-	double distance = distanceBetweenTwoCities(chromosome[CHROMOSOME_SIZE-1], chromosome[0]);
-	for(unsigned int i = 1; i < CHROMOSOME_SIZE; i++){
-		unsigned int j  = i - 1;
-		distance += distanceBetweenTwoCities(chromosome[i], chromosome[j]);
-	}
-	return distance;
-}
-
-__device__ double geneticAlgorithm::distanceBetweenTwoCities(int i, int j){
-	return adjacencyMatrix[i*CHROMOSOME_SIZE+j];
-}
-
-
 
 #endif
