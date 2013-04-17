@@ -61,8 +61,11 @@ void runGeneticAlgorithm(geneticAlgorithm * deviceAlgorithm){
 			+(deviceAlgorithm->ISLAND_POPULATION_SIZE *sizeof(int))
 			+(deviceAlgorithm->ISLAND_POPULATION_SIZE *sizeof(int*));
 
-	createRandomPermutation<<<deviceAlgorithm->GRID_SIZE, deviceAlgorithm->BLOCK_SIZE>>>(*deviceAlgorithm);
+	
 	createRandomSeeds<<<deviceAlgorithm->GRID_SIZE, deviceAlgorithm->BLOCK_SIZE>>>(*deviceAlgorithm, time(NULL));
+	check(cudaDeviceSynchronize());
+	
+	createRandomPermutation<<<deviceAlgorithm->GRID_SIZE, deviceAlgorithm->BLOCK_SIZE>>>(*deviceAlgorithm);
 	check(cudaDeviceSynchronize());
 
 	bool stop = false;
